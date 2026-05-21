@@ -2436,7 +2436,7 @@ function renderRecordsList() {
         <td>${escHtml(r.recorder)}</td>
         <td>${r.time}</td>
         <td>${signed}</td>
-        <td style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" onclick="viewRecord('${r.notionId||r.id}')">查看</button>${exportBtn}</td>
+        <td style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" onclick="viewRecord('${r.notionId||r.id}')">查看</button>${exportBtn}<button class="btn btn-sm" style="color:var(--danger);border:1px solid #e0aaaa;padding:5px 12px;" onclick="deleteRecord('${r.notionId||r.id}')">🗑 刪除</button></td>
       </tr>`;
     }).join('')}
     </tbody></table>`;
@@ -2516,9 +2516,39 @@ function renderCheckinRecords() {
       <td>${escHtml(c.title)}</td>
       <td>${escHtml(c.code)}</td>
       <td>${c.time}</td>
-      <td><button class="btn btn-outline btn-sm" onclick="viewSign('${c.signature}','${escHtml(c.name)}')">查看</button></td>
+      <td style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" onclick="viewSign('${c.signature}','${escHtml(c.name)}')">查看</button><button class="btn btn-sm" style="color:var(--danger);border:1px solid #e0aaaa;padding:5px 12px;" onclick="deleteCheckin('${c.notionId||c.id}')">🗑 刪除</button></td>
     </tr>`).join('')}
     </tbody></table>`;
+}
+
+async function deleteRecord(notionId) {
+  if (!isAdmin) { alert('需要管理員權限'); return; }
+  if (!confirm('確定要刪除此會議紀錄？此操作無法復原。')) return;
+  showGlobalLoading('刪除中…');
+  try {
+    await notionFetch('DELETE', `/db/records/rows/${notionId}`);
+    store.records = store.records.filter(r => (r.notionId || r.id) != notionId);
+    renderRecordsList();
+  } catch(e) {
+    alert('刪除失敗：' + e.message);
+  } finally {
+    hideGlobalLoading();
+  }
+}
+
+async function deleteCheckin(notionId) {
+  if (!isAdmin) { alert('需要管理員權限'); return; }
+  if (!confirm('確定要刪除此簽到記錄？此操作無法復原。')) return;
+  showGlobalLoading('刪除中…');
+  try {
+    await notionFetch('DELETE', `/db/checkins/rows/${notionId}`);
+    store.checkins = store.checkins.filter(c => (c.notionId || c.id) != notionId);
+    renderCheckinRecords();
+  } catch(e) {
+    alert('刪除失敗：' + e.message);
+  } finally {
+    hideGlobalLoading();
+  }
 }
 
 function viewSign(sig, name) {
