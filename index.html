@@ -2405,8 +2405,12 @@ async function exportDocx(recordId) {
     xml = xml.replace(/<w:t>主持人簽註意見：<\/w:t>/,
       `<w:t>${xe('主持人簽註意見：' + (r.chairNote||''))}</w:t>`);
     // 找「主持人簽章：」後的空白 run，填入姓名時間
-    xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,300}?<w:t>)\s*(<\/w:t>)/,
-      `$1${xe((r.chairName||'') + '　' + (r.chairTime||''))}$2`);
+    // 主持人姓名時間：直接找「主持人簽章：」後的空 <w:t></w:t>
+    const chairText = xe((r.chairName||'') + '　' + (r.chairTime||''));
+    const chairRe = /(<w:t>主持人簽章：<\/w:t>[\s\S]{0,300}?<w:t(?:[^>]*)>)(\s*)(<\/w:t>)/;
+    if (chairRe.test(xml)) {
+      xml = xml.replace(chairRe, '$1' + chairText + '$3');
+    }
 
     // ── 主持人簽名圖（暫時停用，只顯示文字）───────────
     if (false && r.chairSignature && r.chairSignature.startsWith('data:image/')) {
