@@ -1306,7 +1306,7 @@ const WORKER = 'https://csmuhgs-notion.nick01033.workers.dev';
    DELETE /db/{key}/rows/:pageId      → { ok: true }
 
    key 對應 Notion 資料庫：
-   persons       → DB#1 人員名單   欄位: name, code, dept, title
+   persons       → DB#1 人員名單   欄位: name, code, dept, jobtitle
    announcements → DB#2 公告       欄位: title, content, level, author, date, localId
    meetings      → DB#3 會議場次   欄位: name, date, type, start, end, location, chair, speaker, recorder, localId
    checkins      → DB#4 簽到記錄   欄位: meetingId, meetingName, name, code, dept, title, signature, time, localId
@@ -1381,7 +1381,7 @@ async function fetchPersons() {
     name: r.name || '',
     code: r.code || '',
     dept: r.dept || '',
-    title: r.title || ''
+    title: r.jobtitle || r.title || ''
   }));
 }
 
@@ -1391,11 +1391,11 @@ async function fetchAnnouncements() {
   store.announcements = (data.results || []).map(r => ({
     notionId: r.id,
     id: r.localId || r.id,
-    title: r.title || '',
+    title: r.jobtitle || r.title || '',
     content: r.content || '',
     level: r.level || '一般',
     author: r.author || '',
-    date: r.date || ''
+    date: r.date ? r.date.replace(/-/g,'/') : ''
   }));
 }
 
@@ -1473,7 +1473,7 @@ async function fetchCheckins() {
     name: r.name || '',
     code: r.code || '',
     dept: r.dept || '',
-    title: r.title || '',
+    title: r.jobtitle || r.title || '',
     signature: r.signature || '',
     time: r.time || ''
   }));
@@ -1694,7 +1694,7 @@ async function saveAnnouncement() {
     title, content,
     level: document.getElementById('ann-level').value,
     author: document.getElementById('ann-author').value.trim(),
-    date: new Date().toLocaleDateString('zh-TW')
+    date: new Date().toISOString().slice(0,10)
   };
   closeModal('modal-announce');
   document.getElementById('ann-title').value = '';
