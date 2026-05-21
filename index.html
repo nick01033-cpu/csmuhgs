@@ -2368,29 +2368,29 @@ async function exportDocx(recordId) {
       }
     } else {
       const j = c.journal || {};
-      // 期刊模板用 {{佔位符}} 直接替換
-      xml = xml.replace('{{題目}}', xe(j.title||''));
-      xml = xml.replace('{{期刊名}}', xe(j.journal||''));
-      xml = xml.replace('{{年份}}', xe(j.year ? String(j.year) : ''));
-      xml = xml.replace('{{摘要}}', xe(j.abstract||''));
-      xml = xml.replace('{{應學習重點}}', xe(j.learning||''));
-      // 主持人/主講人/紀錄人/地點/時間 也用佔位符
-      xml = xml.replace('{{主持人}}', xe(c.chair||''));
-      xml = xml.replace('{{主講人}}', xe(c.speaker||''));
-      xml = xml.replace('{{紀錄人}}', xe(r.recorder||''));
-      xml = xml.replace('{{地點}}', xe(c.location||''));
-      xml = xml.replace('{{起}}', xe((c.start||'').split(':')[0]));
-      xml = xml.replace('{{起分}}', xe((c.start||'').split(':')[1]||'00'));
-      xml = xml.replace('{{迄}}', xe((c.end||'').split(':')[0]));
-      xml = xml.replace('{{迄分}}', xe((c.end||'').split(':')[1]||'00'));
-
+      // 期刊模板：一次性填入所有欄位（按位置索引）
+      // 分析原始模板得出的對照表：
+      // R2[6]=主持人, R2[7]=主講人, R2[8]=紀錄人
+      // R1[96]=題目, R1[98]=期刊名, R1[100]=年份, R1[102]=摘要, R1[103]=討論, R1[104]=應學習重點
+      const R1 = '<w:r><w:rPr><w:rFonts w:eastAsia="\u6a19\u6977\u9ad4"/></w:rPr></w:r>';
+      const R2 = '<w:r><w:rPr><w:rFonts w:eastAsia="\u6a19\u6977\u9ad4"/><w:color w:val="000000"/></w:rPr></w:r>';
       const qas = c.qas || [];
-      if (qas.length) {
-        const qa0 = qas[0];
-        xml = xml.replace('{{討論}}', xe(`Dr. ${qa0.asker||'　　　'}　問：${qa0.question||''}  Dr. ${qa0.answerer||'　　　'}　答：${qa0.answer||''}`));
-      } else {
-        xml = xml.replace('{{討論}}', '');
-      }
+      const qaText = qas.length ? xe(`Dr. ${qas[0].asker||''}\u3000\u554f\uff1a${qas[0].question||''}  Dr. ${qas[0].answerer||''}\u3000\u7b54\uff1a${qas[0].answer||''}`) : '';
+      // R2 填入對照：索引 -> 值
+      const r2Map = { 6: xe(c.chair||''), 7: xe(c.speaker||''), 8: xe(r.recorder||'') };
+      // R1 填入對照：索引 -> 值
+      const r1Map = { 96: xe(j.title||''), 98: xe(j.journal||''), 100: xe(j.year?String(j.year):''), 102: xe(j.abstract||''), 103: qaText, 104: xe(j.learning||'') };
+      let r1c = 0, r2c = 0;
+      xml = xml.replace(new RegExp('(' + R1.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '|' + R2.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'g'), (m) => {
+        if (m === R2) {
+          const n = r2c++;
+          if (r2Map[n] !== undefined) return `<w:r><w:rPr><w:rFonts w:eastAsia="\u6a19\u6977\u9ad4"/><w:color w:val="000000"/></w:rPr><w:t xml:space="preserve">${r2Map[n]}</w:t></w:r>`;
+        } else {
+          const n = r1c++;
+          if (r1Map[n] !== undefined) return `<w:r><w:rPr><w:rFonts w:eastAsia="\u6a19\u6977\u9ad4"/></w:rPr><w:t xml:space="preserve">${r1Map[n]}</w:t></w:r>`;
+        }
+        return m;
+      });
     }
 
     // ── 出席人員 ───────────────────────────────────
