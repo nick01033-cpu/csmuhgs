@@ -2332,23 +2332,6 @@ async function exportDocx(recordId) {
       xml = fillAfterLabel(xml, '紀錄人', r.recorder||'');
     }
 
-    // ── 出席人員 ───────────────────────────────────
-    // 找所有 <w:tr>，跳過表頭，依序填入簽到資料
-    let ciIdx = 0;
-    xml = xml.replace(/<w:tr[ >][\s\S]*?<\/w:tr>/g, tr => {
-      if (tr.includes('>編號<') || tr.includes('>科  別<')) return tr;
-      const tcCount = (tr.match(/<w:tc>/g)||[]).length;
-      if (tcCount < 5) return tr;
-      if (ciIdx >= meetingCheckins.length) return tr;
-      const ci = meetingCheckins[ciIdx++];
-      const vals = [String(ciIdx), ci.dept||'', ci.title||'', ci.code||'', ci.name||''];
-      let vi = 0;
-      return tr.replace(/<w:t(?:[^>]*)><\/w:t>/g, m => {
-        if (vi >= vals.length) return m;
-        return `<w:t>${xe(vals[vi++])}</w:t>`;
-      });
-    });
-
     // ── 內容依類型 ─────────────────────────────────
     if (isCase) {
       const p = c.case || {};
@@ -2407,6 +2390,23 @@ async function exportDocx(recordId) {
         xml = xml.replace('{{討論}}', '');
       }
     }
+
+    // ── 出席人員 ───────────────────────────────────
+    // 找所有 <w:tr>，跳過表頭，依序填入簽到資料
+    let ciIdx = 0;
+    xml = xml.replace(/<w:tr[ >][\s\S]*?<\/w:tr>/g, tr => {
+      if (tr.includes('>編號<') || tr.includes('>科  別<')) return tr;
+      const tcCount = (tr.match(/<w:tc>/g)||[]).length;
+      if (tcCount < 5) return tr;
+      if (ciIdx >= meetingCheckins.length) return tr;
+      const ci = meetingCheckins[ciIdx++];
+      const vals = [String(ciIdx), ci.dept||'', ci.title||'', ci.code||'', ci.name||''];
+      let vi = 0;
+      return tr.replace(/<w:t(?:[^>]*)><\/w:t>/g, m => {
+        if (vi >= vals.length) return m;
+        return `<w:t>${xe(vals[vi++])}</w:t>`;
+      });
+    });
 
     // ── 主持人簽核 ────────────────────────────────
     xml = xml.replace(/<w:t>主持人簽註意見：<\/w:t>/,
