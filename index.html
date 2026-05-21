@@ -2308,12 +2308,22 @@ async function exportDocx(recordId) {
 
     // ── 日期時間地點 ───────────────────────────────
     xml = xml.replace(/<w:t>年    月    日<\/w:t>/, `<w:t>${xe(dateStr)}</w:t>`);
-    xml = fillAfterLabel(xml, '起:', c.start||'');
-    xml = fillAfterLabel(xml, '迄:', c.end||'');
-    xml = fillAfterLabel(xml, '地  點', c.location||'');
-    xml = fillAfterLabel(xml, '主持人', c.chair||'');
-    xml = fillAfterLabel(xml, '主講人', c.speaker||'');
-    xml = fillAfterLabel(xml, '紀錄人', r.recorder||'');
+    if (!isCase) {
+      // 期刊模板：用佔位符替換
+      xml = xml.replace('{{起}}', xe(c.start||''));
+      xml = xml.replace('{{迄}}', xe(c.end||''));
+      xml = xml.replace('{{地點}}', xe(c.location||''));
+      xml = xml.replace('{{主持人}}', xe(c.chair||''));
+      xml = xml.replace('{{主講人}}', xe(c.speaker||''));
+      xml = xml.replace('{{紀錄人}}', xe(r.recorder||''));
+    } else {
+      xml = fillAfterLabel(xml, '起:', c.start||'');
+      xml = fillAfterLabel(xml, '迄:', c.end||'');
+      xml = fillAfterLabel(xml, '地  點', c.location||'');
+      xml = fillAfterLabel(xml, '主持人', c.chair||'');
+      xml = fillAfterLabel(xml, '主講人', c.speaker||'');
+      xml = fillAfterLabel(xml, '紀錄人', r.recorder||'');
+    }
 
     // ── 出席人員 ───────────────────────────────────
     // 找所有 <w:tr>，跳過表頭，依序填入簽到資料
