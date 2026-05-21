@@ -1878,20 +1878,38 @@ async function submitCheckin() {
   const dup = store.checkins.find(c => (c.meetingId == meetingId || c.meetingId == (store.meetings.find(m=>(m.notionId||m.id)==meetingId)||{}).id) && c.code === personCode);
   if (dup) { showAlert(alertEl, 'error', '您已完成此會議的簽到'); return; }
 
+  // 壓縮簽名：縮小 canvas 再轉 base64，控制在 Notion 2000 字元內
+  const sigCompressed = compressSignature(canvas);
+
   const checkinObj = {
     id: Date.now(),
     meetingId, meetingName: meeting.name,
     name: person.name, code: person.code,
     dept: person.dept, title: person.title,
-    signature: sigData,
+    signature: sigCompressed,
     time: new Date().toLocaleString('zh-TW')
   };
   clearSign();
   document.getElementById('checkin-name').value = '';
   document.getElementById('checkin-meeting').value = '';
   document.getElementById('personInfoBox').classList.remove('show');
-  await createCheckin(checkinObj);
-  showAlert(alertEl, 'success', `✓ ${person.name} 簽到成功！（${meeting.name}）`);
+  try {
+    await createCheckin(checkinObj);
+    showAlert(alertEl, 'success', `✓ ${person.name} 簽到成功！（${meeting.name}）`);
+  } catch(e) {
+    showAlert(alertEl, 'error', '簽到失敗：' + e.message);
+  }
+}
+
+// 壓縮簽名至適合 Notion 儲存的大小（縮小解析度 + 降品質）
+function compressSignature(sourceCanvas) {
+  const small = document.createElement('canvas');
+  small.width = 200;
+  small.height = 80;
+  const ctx = small.getContext('2d');
+  ctx.drawImage(sourceCanvas, 0, 0, 200, 80);
+  // 用 jpeg 大幅降低大小
+  return small.toDataURL('image/jpeg', 0.5);
 }
 
 /* ============================================================
@@ -2159,7 +2177,7 @@ async function submitChairSign() {
   const patch = {
     chairName: name,
     chairNote: document.getElementById('chair-sign-note').value.trim(),
-    chairSignature: canvas.toDataURL('image/png'),
+    chairSignature: compressSignature(canvas),
     chairTime: new Date().toLocaleString('zh-TW')
   };
 
@@ -2216,8 +2234,8 @@ function toggleCb(xml, labelShort, checked) {
   return xml.replace(re, (m, pre, box, post) => `${pre}${checked ? '■' : '□'}${post}`);
 }
 
-async function exportDocx(idx) {
-  const r = store.records[idx];
+async function exportDocx(recordId) {
+  const r = store.records.find(r => (r.notionId || r.id) == recordId);
   if (!r || !r.chairSignature) { alert('請先完成主持人簽核才能匯出'); return; }
 
   const btn = event && event.target;
@@ -2392,7 +2410,7 @@ function renderRecordsList() {
         ? `<span class="badge" style="background:var(--accent-light);color:var(--accent);border:1px solid var(--accent-border);">✓ ${escHtml(r.chairName)}</span>`
         : `<span class="badge badge-normal">待簽核</span>`;
       const exportBtn = r.chairSignature
-        ? `<button class="btn btn-outline btn-sm" onclick="exportDocx(${i})" style="color:var(--accent);border-color:var(--accent-border);">⬇ 匯出</button>`
+        ? `<button class="btn btn-outline btn-sm" onclick="exportDocx('${r.notionId||r.id}')" style="color:var(--accent);border-color:var(--accent-border);">⬇ 匯出</button>`
         : `<button class="btn btn-sm" style="color:var(--text3);border:1px solid var(--border);cursor:not-allowed;padding:5px 12px;" disabled title="請先完成主持人簽核">⬇ 匯出</button>`;
       return `<tr>
         <td>${r.no}</td>
@@ -2401,14 +2419,14 @@ function renderRecordsList() {
         <td>${escHtml(r.recorder)}</td>
         <td>${r.time}</td>
         <td>${signed}</td>
-        <td style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" onclick="viewRecord(${i})">查看</button>${exportBtn}</td>
+        <td style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" onclick="viewRecord('${r.notionId||r.id}')">查看</button>${exportBtn}</td>
       </tr>`;
     }).join('')}
     </tbody></table>`;
 }
 
-function viewRecord(i) {
-  const r = store.records[i];
+function viewRecord(recordId) {
+  const r = store.records.find(r => (r.notionId || r.id) == recordId);
   const c = r.content;
   let html = `<div class="text-sm" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
     <span><b>會議：</b>${escHtml(r.meetingName)}</span>
