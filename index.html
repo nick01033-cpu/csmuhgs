@@ -2254,18 +2254,20 @@ function xe(s) {
 
 // 填入值到 label 後的相鄰儲存格（支援跨 <w:tc> 結構）
 function fillAfterLabel(xml, label, value) {
-  const esc = label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  // 注意：label 不做 regex 跳脫，因為標籤都是中文或簡單符號
   const v = xe(value);
+  const esc = label.replace(/[-[\]{}()*+?.,\\^$|#\s]/g,'\\$&');
   // 策略1：label 後有空 <w:t></w:t>
-  const re1 = new RegExp('(' + esc + '<\\/w:t>[\\s\\S]{0,800}?<w:t(?:[^>]*)>)(<\\/w:t>)');
-  if (re1.test(xml)) return xml.replace(re1, '$1' + v + '$2');
-  // 策略2：下一個 <w:tc> 裡，在第一個 </w:rPr> 後插入 <w:t>值</w:t>
-  const re2 = new RegExp('(' + esc + '<\\/w:t>[\\s\\S]{0,800}?<\\/w:tc><w:tc>[\\s\\S]{0,800}?<\\/w:rPr>)');
-  if (re2.test(xml)) return xml.replace(re2, '$1<w:t xml:space="preserve">' + v + '<\\/w:t>');
-  // 策略3：下一個 <w:tc> 裡，在第一個 </w:r> 前插入 <w:t>值</w:t>
-  const re3 = new RegExp('(' + esc + '<\\/w:t>[\\s\\S]{0,800}?<\\/w:tc><w:tc>[\\s\\S]{0,400}?)(<\\/w:r>)');
-  if (re3.test(xml)) return xml.replace(re3, '$1<w:t xml:space="preserve">' + v + '<\\/w:t>$2');
+  const p1 = '(' + esc + '<\\/w:t>[\\s\\S]{0,800}?<w:t(?:[^>]*)>)(<\\/w:t>)';
+  if (new RegExp(p1).test(xml)) return xml.replace(new RegExp(p1), '$1' + v + '$2');
+  // 策略2：下一個 <w:tc> 裡，在第一個 </w:rPr> 後插入
+  const p2 = '(' + esc + '<\\/w:t>[\\s\\S]{0,800}?<\\/w:tc><w:tc>[\\s\\S]{0,800}?<\\/w:rPr>)';
+  if (new RegExp(p2).test(xml)) return xml.replace(new RegExp(p2), '$1<w:t xml:space="preserve">' + v + '<\\/w:t>');
+  // 策略3：下一個 <w:tc> 裡，在第一個 </w:r> 前插入
+  const p3 = '(' + esc + '<\\/w:t>[\\s\\S]{0,800}?<\\/w:tc><w:tc>[\\s\\S]{0,400}?)(<\\/w:r>)';
+  if (new RegExp(p3).test(xml)) return xml.replace(new RegExp(p3), '$1<w:t xml:space="preserve">' + v + '<\\/w:t>$2');
   return xml;
+}
 }
 // 切換 □ label 為 ■ 或 □
 function toggleCb(xml, labelShort, checked) {
