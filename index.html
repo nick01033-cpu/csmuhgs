@@ -2412,16 +2412,8 @@ async function exportDocx(recordId) {
       xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?<\/w:p>)/, `$1${imgXml}`);
     }
 
-    // ── 出席人員簽名圖 ─────────────────────────────
-    meetingCheckins.forEach((ci, i) => {
-      if (!ci.signature || !ci.signature.startsWith('data:image/')) return;
-      const rId = `rIdSig${i}`;
-      const sigExt = ci.signature.includes('image/jpeg') ? 'jpg' : 'png';
-      const fname = `attendsig${i}.${sigExt}`;
-      zip.file(`word/media/${fname}`, b64ToArr(ci.signature.split(',')[1]));
-      relsXml = relsXml.replace('</Relationships>',
-        `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/></Relationships>`);
-    });
+    // ── 出席人員簽名圖（暫時停用）─────────────────────
+    // meetingCheckins.forEach((ci, i) => { ... });
 
     // 清除所有未替換的佔位符（避免破壞 XML 結構）
     xml = xml.replace(/\{\{[^}]+\}\}/g, '');
