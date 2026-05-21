@@ -2423,6 +2423,9 @@ async function exportDocx(recordId) {
         `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/></Relationships>`);
     });
 
+    // 清除所有未替換的佔位符（避免破壞 XML 結構）
+    xml = xml.replace(/\{\{[^}]+\}\}/g, '');
+
     zip.file('word/document.xml', xml);
     zip.file('word/_rels/document.xml.rels', relsXml);
 
