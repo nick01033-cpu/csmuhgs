@@ -2202,12 +2202,26 @@ const TMPL_JOURNAL_B64 = "UEsDBBQACAgIAFlFtFwAAAAAAAAAAAAAAAALAAAAX3JlbHMvLnJlbH
 
 async function loadPizZip() {
   if (window.PizZip) return;
-  await new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/PizZip/3.1.7/pizzip.min.js';
-    s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
+  const cdns = [
+    'https://unpkg.com/pizzip@3.1.7/dist/pizzip.min.js',
+    'https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/PizZip/3.1.7/pizzip.min.js',
+  ];
+  for (const src of cdns) {
+    try {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = res;
+        s.onerror = rej;
+        document.head.appendChild(s);
+      });
+      if (window.PizZip) return; // 成功
+    } catch(e) {
+      console.warn('PizZip CDN failed:', src);
+    }
+  }
+  throw new Error('無法載入 PizZip，請確認網路連線');
 }
 
 function b64ToArr(b64) {
@@ -2348,12 +2362,14 @@ async function exportDocx(recordId) {
       `$1${xe((r.chairName||'') + '　' + (r.chairTime||''))}$2`);
 
     // ── 主持人簽名圖 ───────────────────────────────
-    if (r.chairSignature && r.chairSignature.startsWith('data:image/png;base64,')) {
+    if (r.chairSignature && r.chairSignature.startsWith('data:image/')) {
       const sigRId = 'rIdChairSig1';
       const sigB64 = r.chairSignature.split(',')[1];
-      zip.file('word/media/chairsig.png', b64ToArr(sigB64));
+      const chairSigExt = r.chairSignature.includes('image/jpeg') ? 'jpg' : 'png';
+      const chairSigMime = r.chairSignature.includes('image/jpeg') ? 'image/jpeg' : 'image/png';
+      zip.file('word/media/chairsig.' + chairSigExt, b64ToArr(sigB64));
       relsXml = relsXml.replace('</Relationships>',
-        `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.png"/></Relationships>`);
+        `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.${chairSigExt}"/></Relationships>`);
       const imgXml = `<w:p><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1270000" cy="396240"/><wp:docPr id="99" name="chairsig"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="sig"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${sigRId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="396240"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
       // 插在「主持人簽章：」段落之後
       xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?<\/w:p>)/, `$1${imgXml}`);
@@ -2361,9 +2377,10 @@ async function exportDocx(recordId) {
 
     // ── 出席人員簽名圖 ─────────────────────────────
     meetingCheckins.forEach((ci, i) => {
-      if (!ci.signature || !ci.signature.startsWith('data:image/png;base64,')) return;
+      if (!ci.signature || !ci.signature.startsWith('data:image/')) return;
       const rId = `rIdSig${i}`;
-      const fname = `attendsig${i}.png`;
+      const sigExt = ci.signature.includes('image/jpeg') ? 'jpg' : 'png';
+      const fname = `attendsig${i}.${sigExt}`;
       zip.file(`word/media/${fname}`, b64ToArr(ci.signature.split(',')[1]));
       relsXml = relsXml.replace('</Relationships>',
         `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/></Relationships>`);
