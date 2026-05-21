@@ -2309,7 +2309,12 @@ async function exportDocx(recordId) {
     // ── 日期時間地點 ───────────────────────────────
     // 日期格式：2026年05月21日
     const dateFormatted = c.date ? c.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$1年$2月$3日') : '';
-    xml = xml.replace(/<w:t>年    月    日<\/w:t>/, `<w:t>${xe(dateFormatted)}</w:t>`);
+    // 把日期填入「年月日」欄（精確字串替換）
+    if (dateFormatted) {
+      const _ds = '<w:t xml:space="preserve">  </w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="Times New Roman"/><w:color w:val="000000"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="\u6a19\u6977\u9ad4"/><w:color w:val="000000"/></w:rPr><w:t>\u5e74</w:t>';
+      const _dr = `<w:t xml:space="preserve">${xe(dateFormatted)}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="Times New Roman"/><w:color w:val="000000"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="\u6a19\u6977\u9ad4"/><w:color w:val="000000"/></w:rPr><w:t>\u5e74`;
+      xml = xml.replace(_ds, _dr);
+    }
     if (!isCase) {
       // 期刊模板：用佔位符替換
       xml = xml.replace('{{起}}', xe((c.start||'').split(':')[0]));
