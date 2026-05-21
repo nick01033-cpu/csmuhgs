@@ -730,6 +730,24 @@
     .header-title { font-size: 14px; }
   }
 </style>
+  <!-- PizZip 預先載入（匯出 Word 用） -->
+  <script>
+  (function() {
+    var cdns = [
+      'https://unpkg.com/pizzip@3.1.7/dist/pizzip.min.js',
+      'https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/PizZip/3.1.7/pizzip.min.js'
+    ];
+    function tryLoad(i) {
+      if (i >= cdns.length) return;
+      var s = document.createElement('script');
+      s.src = cdns[i];
+      s.onerror = function() { tryLoad(i + 1); };
+      document.head.appendChild(s);
+    }
+    tryLoad(0);
+  })();
+  </script>
 </head>
 <body>
 
@@ -1429,8 +1447,8 @@ async function fetchMeetings() {
     name: r.name || '',
     date: r.date || '',
     type: r.type || '病例討論會',
-    start: r.start || '',
-    end: r.end || '',
+    start: toTimeInput(r.start || ''),
+    end: toTimeInput(r.end || ''),
     location: r.location || '',
     chair: r.chair || '',
     speaker: r.speaker || '',
@@ -1934,8 +1952,8 @@ function loadMeetingType() {
   setMeetingType(type);
   // 帶入場次資料（有填才帶入）
   if (meeting.date) document.getElementById('rec-date').value = meeting.date;
-  if (meeting.start) document.getElementById('rec-start').value = meeting.start;
-  if (meeting.end) document.getElementById('rec-end').value = meeting.end;
+  if (meeting.start) document.getElementById('rec-start').value = toTimeInput(meeting.start);
+  if (meeting.end) document.getElementById('rec-end').value = toTimeInput(meeting.end);
   if (meeting.location) document.getElementById('rec-location').value = meeting.location;
   if (meeting.chair) document.getElementById('rec-chair').value = meeting.chair;
   if (meeting.speaker) document.getElementById('rec-speaker').value = meeting.speaker;
@@ -2560,6 +2578,16 @@ function viewSign(sig, name) {
 /* ============================================================
    UTILITIES
 ============================================================ */
+// 將 "1400" 或 "14:00" 都轉成 "14:00"（time input 需要 HH:mm）
+function toTimeInput(val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (s.includes(':')) return s.slice(0,5); // 已經是 HH:mm 格式
+  if (s.length === 3) return '0' + s[0] + ':' + s.slice(1); // 如 "900" → "09:00"
+  if (s.length === 4) return s.slice(0,2) + ':' + s.slice(2); // 如 "1400" → "14:00"
+  return s;
+}
+
 function escHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
