@@ -1730,7 +1730,7 @@ function renderAnnouncements() {
           <span class="badge ${badgeClass}">${a.level}</span>
         </div>
       </div>
-      ${(() => { let text=a.content,img='',att='',attName=''; try{const p=JSON.parse(a.content);text=p.text||'';img=p.image||'';att=p.attachment||'';attName=p.attachmentName||'';}catch(e){} return `<div class="ann-content" style="white-space:pre-wrap;">${autoLink(text)}</div>${img?`<div style="margin-top:8px;"><img src="${escHtml(img)}" style="max-width:100%;border-radius:6px;" onerror="this.style.display='none'"></div>`:''  }${att?`<div style="margin-top:8px;"><a href="${escHtml(att)}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;color:var(--primary);text-decoration:none;">📎 ${escHtml(attName||'附件')}</a></div>`:''}`;})()}
+      ${(() => { let text=a.content,img='',att='',attName=''; try{const p=JSON.parse(a.content);text=p.text||'';img=p.image||'';att=p.attachment||'';attName=p.attachmentName||'';}catch(e){} return `<div class="ann-content" style="white-space:pre-wrap;">${autoLink(text)}</div>${img?`<div style="margin-top:8px;"><img src="${escHtml(toDirectImgUrl(img))}" style="max-width:100%;border-radius:6px;" onerror="this.style.display='none'"></div>`:''  }${att?`<div style="margin-top:8px;"><a href="${escHtml(att)}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;color:var(--primary);text-decoration:none;">📎 ${escHtml(attName||'附件')}</a></div>`:''}`;})()}
       <div class="ann-meta" style="margin-top:6px;">${a.author ? escHtml(a.author) + '・' : ''}${a.date}</div>
     </div>`;
   }).join('');
@@ -1753,7 +1753,7 @@ function renderAdminAnnouncements() {
           <button class="btn-icon" onclick="deleteAnn('${a.notionId}')" title="刪除">🗑</button>
         </div>
       </div>
-      ${(() => { let text=a.content,img='',att='',attName=''; try{const p=JSON.parse(a.content);text=p.text||'';img=p.image||'';att=p.attachment||'';attName=p.attachmentName||'';}catch(e){} return `<div class="ann-content" style="white-space:pre-wrap;">${autoLink(text)}</div>${img?`<div style="margin-top:8px;"><img src="${escHtml(img)}" style="max-width:100%;border-radius:6px;" onerror="this.style.display='none'"></div>`:''  }${att?`<div style="margin-top:8px;"><a href="${escHtml(att)}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;color:var(--primary);text-decoration:none;">📎 ${escHtml(attName||'附件')}</a></div>`:''}`;})()}
+      ${(() => { let text=a.content,img='',att='',attName=''; try{const p=JSON.parse(a.content);text=p.text||'';img=p.image||'';att=p.attachment||'';attName=p.attachmentName||'';}catch(e){} return `<div class="ann-content" style="white-space:pre-wrap;">${autoLink(text)}</div>${img?`<div style="margin-top:8px;"><img src="${escHtml(toDirectImgUrl(img))}" style="max-width:100%;border-radius:6px;" onerror="this.style.display='none'"></div>`:''  }${att?`<div style="margin-top:8px;"><a href="${escHtml(att)}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;color:var(--primary);text-decoration:none;">📎 ${escHtml(attName||'附件')}</a></div>`:''}`;})()}
       <div class="ann-meta" style="margin-top:4px;">${a.author ? escHtml(a.author) + '・' : ''}${a.date}</div>
     </div>`;
   }).join('');
@@ -2892,7 +2892,13 @@ function toTimeInput(val) {
   return s;
 }
 
-function autoLink(text) {
+function toDirectImgUrl(url) {
+  if (!url) return '';
+  // Google Drive 分享連結轉直連
+  const m = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+  return url;
+}
   // 自動把網址變成可點擊連結（支援 https:// http:// www.）
   return escHtml(text).replace(/(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+)/g, (match) => {
     const href = match.startsWith('www.') ? 'https://' + match : match;
