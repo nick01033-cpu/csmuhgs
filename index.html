@@ -1925,6 +1925,9 @@ function compressSignature(sourceCanvas) {
   small.width = 200;
   small.height = 80;
   const ctx = small.getContext('2d');
+  // 先填白色背景（避免 JPEG 透明區域變黑）
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 200, 80);
   ctx.drawImage(sourceCanvas, 0, 0, 200, 80);
   // 用 jpeg 大幅降低大小
   return small.toDataURL('image/jpeg', 0.5);
