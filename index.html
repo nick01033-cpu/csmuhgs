@@ -2457,28 +2457,34 @@ async function exportDocx(recordId) {
         `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/></Relationships>`);
       // 找出席人員表格第 i+2 列的簽到欄（最後一個 tc）插入簽名圖
       const sigImgXml = `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="800000" cy="300000"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${100+i}" name="${fname}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${100+i}" name="${fname}"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="800000" cy="300000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
-      // 在出席人員對應列的最後一個 tc 裡插入簽名（在 </w:p> 前）
-      let dataRowCount = 0;
-      xml = xml.replace(/<w:tr[ >][\s\S]*?<\/w:tr>/g, tr => {
-        const isHeader = tr.includes('>編號<') || tr.includes('>科  別<');
-        const tcCount = (tr.match(/<w:tc>/g)||[]).length;
-        if (!isHeader && tcCount >= 5) {
-          if (dataRowCount === i) {
-            dataRowCount++;
-            // 找最後一個 tc 裡的最後一個 </w:p>，在它前面插入簽名 run
-            const lastTcIdx = tr.lastIndexOf('<w:tc>');
-            const lastTcPart = tr.slice(lastTcIdx);
-            const lastPIdx = lastTcPart.lastIndexOf('</w:p>');
-            if (lastPIdx >= 0) {
-              const newLastTc = lastTcPart.slice(0, lastPIdx) + sigImgXml + lastTcPart.slice(lastPIdx);
-              return tr.slice(0, lastTcIdx) + newLastTc;
+      // 只在出席人員表格範圍內操作
+      const ah2 = xml.indexOf('>編號<');
+      if (ah2 >= 0) {
+        const ts2 = xml.lastIndexOf('<w:tbl>', ah2);
+        const te2 = xml.indexOf('</w:tbl>', ah2) + '</w:tbl>'.length;
+        const tableXml2 = xml.slice(ts2, te2);
+        let dataRowCount = 0;
+        const newTableXml2 = tableXml2.replace(/<w:tr[ >][\s\S]*?<\/w:tr>/g, tr => {
+          const isHeader = tr.includes('>編號<') || tr.includes('>科  別<');
+          const tcCount = (tr.match(/<w:tc>/g)||[]).length;
+          if (!isHeader && tcCount >= 5) {
+            if (dataRowCount === i) {
+              dataRowCount++;
+              const lastTcIdx = tr.lastIndexOf('<w:tc>');
+              const lastTcPart = tr.slice(lastTcIdx);
+              const lastPIdx = lastTcPart.lastIndexOf('</w:p>');
+              if (lastPIdx >= 0) {
+                const newLastTc = lastTcPart.slice(0, lastPIdx) + sigImgXml + lastTcPart.slice(lastPIdx);
+                return tr.slice(0, lastTcIdx) + newLastTc;
+              }
+              return tr;
             }
-            return tr;
+            dataRowCount++;
           }
-          dataRowCount++;
-        }
-        return tr;
-      });
+          return tr;
+        });
+        xml = xml.slice(0, ts2) + newTableXml2 + xml.slice(te2);
+      }
     });
 
     // 清除所有未替換的佔位符（避免破壞 XML 結構）
