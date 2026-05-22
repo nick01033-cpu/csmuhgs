@@ -2025,8 +2025,14 @@ function compressSignature(sourceCanvas) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, 200, 80);
   ctx.drawImage(sourceCanvas, 0, 0, 200, 80);
-  // 用 jpeg 大幅降低大小
-  return small.toDataURL('image/jpeg', 0.5);
+  // 逐步降低品質直到 base64 長度在 1800 字元以內
+  let quality = 0.5;
+  let result = small.toDataURL('image/jpeg', quality);
+  while (result.split(',')[1].length > 1800 && quality > 0.1) {
+    quality -= 0.05;
+    result = small.toDataURL('image/jpeg', quality);
+  }
+  return result;
 }
 
 /* ============================================================
@@ -2637,15 +2643,19 @@ async function exportDocx(recordId) {
 
     // ── 主持人簽名圖 ───────────────────────────────
     if (r.chairSignature && r.chairSignature.startsWith('data:image/')) {
-      const sigRId = 'rIdChairSig1';
-      const sigB64 = r.chairSignature.split(',')[1];
-      const chairSigExt = r.chairSignature.includes('image/jpeg') ? 'jpg' : 'png';
-      zip.file('word/media/chairsig.' + chairSigExt, b64ToArr(sigB64));
-      relsXml = relsXml.replace('</Relationships>',
-        `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.${chairSigExt}"/></Relationships>`);
-      const imgXml = `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1270000" cy="396240"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="99" name="chairsig"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="99" name="chairsig"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${sigRId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="396240"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
-      // 插在「主持人簽章：」段落的 </w:p> 前
-      xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?)(<\/w:p>)/, `$1${imgXml}$2`);
+      try {
+        const sigRId = 'rIdChairSig1';
+        const sigB64 = r.chairSignature.split(',')[1];
+        atob(sigB64); // 驗證 base64 完整性
+        const chairSigExt = r.chairSignature.includes('image/jpeg') ? 'jpg' : 'png';
+        zip.file('word/media/chairsig.' + chairSigExt, b64ToArr(sigB64));
+        relsXml = relsXml.replace('</Relationships>',
+          `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.${chairSigExt}"/></Relationships>`);
+        const imgXml = `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1270000" cy="396240"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="99" name="chairsig"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="99" name="chairsig"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${sigRId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="396240"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+        xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?)(<\/w:p>)/, `$1${imgXml}$2`);
+      } catch(e) {
+        console.warn('主持人簽名無法載入（可能被截斷）:', e.message);
+      }
     }
 
     // ── 出席人員簽名圖（暫時停用）─────────────────────
