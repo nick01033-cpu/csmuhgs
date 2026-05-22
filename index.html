@@ -2039,6 +2039,7 @@ function getCheckedValues(name) {
 }
 
 function clearRecordForm() {
+  currentEditRecordId = null;
   document.getElementById('record-meeting').value = '';
   ['rec-date','rec-location','rec-start','rec-end','rec-recorder','rec-chair','rec-speaker',
    'case-bed','case-mrn','case-age','case-name','case-bio','case-psych','case-spirit','case-social','case-other',
@@ -2144,7 +2145,7 @@ function editRecord(recordId) {
     }
 
     // 記錄編輯中的 notionId（用於更新而非新增）
-    document.getElementById('record-meeting').dataset.editId = r.notionId || r.id;
+    currentEditRecordId = r.notionId || r.id;
     showAlert(document.getElementById('record-alert'), 'info', `✏ 正在編輯紀錄 ${r.no}，修改後請點「送出紀錄」`);
   }, 100);
 }
@@ -2200,7 +2201,7 @@ async function submitRecord() {
     };
   }
 
-  const editId = document.getElementById('record-meeting').dataset.editId;
+  const editId = currentEditRecordId;
 
   const recObj = {
     id: editId || Date.now(),
@@ -2212,7 +2213,7 @@ async function submitRecord() {
   try {
     if (editId) {
       await updateRecord(editId, recObj);
-      document.getElementById('record-meeting').dataset.editId = '';
+      currentEditRecordId = null;
       showAlert(alertEl, 'success', '✓ 會議紀錄已成功更新！');
     } else {
       await createRecord(recObj);
@@ -2228,6 +2229,7 @@ async function submitRecord() {
    CHAIR SIGN
 ============================================================ */
 let chairSignCtx, chairSignDrawing = false, chairLastX, chairLastY;
+let currentEditRecordId = null; // 編輯模式用
 
 function initChairCanvas() {
   const canvas = document.getElementById('chairSignCanvas');
