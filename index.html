@@ -1555,7 +1555,18 @@ async function updateRecord(notionId, obj) {
     const payload = { ...obj, content: JSON.stringify(obj.content) };
     await notionFetch('PATCH', `/db/records/rows/${notionId}`, payload);
     const idx = store.records.findIndex(r => (r.notionId||r.id) == notionId);
-    if (idx >= 0) store.records[idx] = { ...store.records[idx], ...obj, notionId };
+    if (idx >= 0) {
+      // 保留 chairSignature 等簽核資料，只更新 content 相關欄位
+      store.records[idx] = {
+        ...store.records[idx],
+        meetingId: obj.meetingId,
+        meetingName: obj.meetingName,
+        recorder: obj.recorder,
+        content: obj.content,  // 保持為物件
+        time: obj.time,
+        notionId
+      };
+    }
     renderRecordsList();
   } finally { hideGlobalLoading(); }
 }
