@@ -2449,8 +2449,8 @@ async function exportDocx(recordId) {
       xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?<\/w:p>)/, `$1${imgXml}`);
     }
 
-    // ── 出席人員簽名圖 ─────────────────────────────
-    meetingCheckins.forEach((ci, i) => {
+    // ── 出席人員簽名圖（暫時停用）─────────────────────
+    meetingCheckins.forEach((ci, i) => { return; // 暫停
       if (!ci.signature || !ci.signature.startsWith('data:image/')) return;
       const rId = `rIdSig${i}`;
       const sigExt = ci.signature.includes('image/jpeg') ? 'jpg' : 'png';
