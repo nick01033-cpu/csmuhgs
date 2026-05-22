@@ -855,6 +855,18 @@
       </div>
     </div>
 
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>載入既有紀錄來編輯</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="load-record-select" style="flex:1;">
+            <option value="">— 選擇要編輯的紀錄 —</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadRecordToEdit()">載入</button>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="form-group">
         <label class="required">選擇會議場次</label>
@@ -1114,6 +1126,7 @@
       <div id="chair-sign-done" style="display:none;">
         <div class="alert alert-success">✓ 此紀錄已完成主持人簽核</div>
         <div id="chair-sign-done-detail" class="text-sm text-muted"></div>
+        <button class="btn btn-outline btn-sm" style="margin-top:0.75rem;" onclick="resetChairSign()">重新簽核</button>
       </div>
     </div>
   </div>
@@ -1536,6 +1549,17 @@ async function createRecord(obj) {
   } finally { hideGlobalLoading(); }
 }
 
+async function updateRecord(notionId, obj) {
+  showGlobalLoading('更新紀錄中…');
+  try {
+    const payload = { ...obj, content: JSON.stringify(obj.content) };
+    await notionFetch('PATCH', `/db/records/rows/${notionId}`, payload);
+    const idx = store.records.findIndex(r => (r.notionId||r.id) == notionId);
+    if (idx >= 0) store.records[idx] = { ...store.records[idx], ...obj, notionId };
+    renderRecordsList();
+  } finally { hideGlobalLoading(); }
+}
+
 async function updateRecordChairSign(notionId, patch) {
   showGlobalLoading('送出簽核中…');
   try {
@@ -1642,7 +1666,7 @@ function showPage(id) {
 
   if (id === 'announcements') renderAnnouncements();
   if (id === 'checkin') populateCheckinSelects();
-  if (id === 'record') populateRecordSelects();
+  if (id === 'record') { populateRecordSelects(); populateLoadRecordSelect(); }
   if (id === 'chair-sign') populateChairRecordSelect();
   if (id === 'admin-records') { renderRecordsList(); renderCheckinRecords(); }
 }
@@ -2031,7 +2055,88 @@ function clearRecordForm() {
   qaCount = 1;
 }
 
-async function submitRecord() {
+function editRecord(recordId) {
+  const r = store.records.find(r => (r.notionId||r.id) == recordId);
+  if (!r) return;
+  const c = r.content;
+
+  // 切到填寫頁面
+  showPage('record');
+
+  setTimeout(() => {
+    // 設定會議場次
+    const meetingSel = document.getElementById('record-meeting');
+    for (let opt of meetingSel.options) {
+      if (opt.value == r.meetingId || opt.value == (store.meetings.find(m => m.name === r.meetingName)||{}).notionId) {
+        meetingSel.value = opt.value;
+        break;
+      }
+    }
+
+    // 填入基本欄位
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val||''; };
+    setVal('rec-date', c.date);
+    setVal('rec-location', c.location);
+    setVal('rec-start', c.start);
+    setVal('rec-end', c.end);
+    setVal('rec-chair', c.chair);
+    setVal('rec-speaker', c.speaker);
+    setVal('rec-recorder', r.recorder);
+
+    // 類型
+    if (c.type === '病例討論會') {
+      setMeetingType('case');
+      if (c.case) {
+        setVal('case-bed', c.case.bed);
+        setVal('case-mrn', c.case.mrn);
+        setVal('case-age', c.case.age);
+        document.getElementById('case-gender').value = c.case.gender||'';
+        setVal('case-name', c.case.name);
+        setVal('case-bio', c.case.bio);
+        setVal('case-psych', c.case.psych);
+        setVal('case-spirit', c.case.spirit);
+        setVal('case-social', c.case.social);
+        setVal('case-other', c.case.other);
+        setVal('case-summary', c.case.summary);
+        setVal('case-diagnosis', c.case.diagnosis);
+        setVal('case-evidence', c.case.evidence);
+      }
+    } else {
+      setMeetingType('journal');
+      if (c.journal) {
+        setVal('jour-title', c.journal.title);
+        setVal('jour-journal', c.journal.journal);
+        setVal('jour-year', c.journal.year);
+        setVal('jour-abstract', c.journal.abstract);
+        setVal('jour-learning', c.journal.learning);
+      }
+    }
+
+    // Q&A
+    if (c.qas && c.qas.length) {
+      document.getElementById('qaList').innerHTML = c.qas.map(qa => `
+        <div class="qa-entry">
+          <div style="flex:1;">
+            <div style="display:flex;gap:6px;margin-bottom:4px;align-items:center;">
+              <span class="qa-label" style="min-width:auto;">問：</span>
+              <input type="text" placeholder="提問醫師姓名" style="width:120px;flex-shrink:0;" value="${escHtml(qa.asker||'')}">
+            </div>
+            <textarea placeholder="問題內容..." style="margin-bottom:6px;">${escHtml(qa.question||'')}</textarea>
+            <div style="display:flex;gap:6px;margin-bottom:4px;align-items:center;">
+              <span class="qa-label" style="min-width:auto;">答：</span>
+              <input type="text" placeholder="回答醫師姓名" style="width:120px;flex-shrink:0;" value="${escHtml(qa.answerer||'')}">
+            </div>
+            <textarea placeholder="回答內容...">${escHtml(qa.answer||'')}</textarea>
+          </div>
+        </div>`).join('');
+      qaCount = c.qas.length;
+    }
+
+    // 記錄編輯中的 notionId（用於更新而非新增）
+    document.getElementById('record-meeting').dataset.editId = r.notionId || r.id;
+    showAlert(document.getElementById('record-alert'), 'info', `✏ 正在編輯紀錄 ${r.no}，修改後請點「送出紀錄」`);
+  }, 100);
+}
   const meetingId = document.getElementById('record-meeting').value;
   const recorder = document.getElementById('rec-recorder').value.trim();
   const alertEl = document.getElementById('record-alert');
@@ -2082,16 +2187,24 @@ async function submitRecord() {
     };
   }
 
+  const editId = document.getElementById('record-meeting').dataset.editId;
+
   const recObj = {
-    id: Date.now(),
-    no: 'REC' + String(store.records.length + 1).padStart(4, '0'),
+    id: editId || Date.now(),
+    no: editId ? (store.records.find(r => (r.notionId||r.id) == editId)||{}).no || '' : 'REC' + String(store.records.length + 1).padStart(4, '0'),
     meetingId, meetingName: meeting.name,
     recorder, content,
     time: new Date().toLocaleString('zh-TW')
   };
   try {
-    await createRecord(recObj);
-    showAlert(alertEl, 'success', '✓ 會議紀錄已成功送出！');
+    if (editId) {
+      await updateRecord(editId, recObj);
+      document.getElementById('record-meeting').dataset.editId = '';
+      showAlert(alertEl, 'success', '✓ 會議紀錄已成功更新！');
+    } else {
+      await createRecord(recObj);
+      showAlert(alertEl, 'success', '✓ 會議紀錄已成功送出！');
+    }
     setTimeout(() => clearRecordForm(), 2000);
   } catch(e) {
     showAlert(alertEl, 'error', '送出失敗，請稍後再試：' + e.message);
@@ -2181,6 +2294,26 @@ function loadChairRecord() {
     `<b>${escHtml(rec.meetingName)}</b>（${rec.content.type}）・紀錄人：${escHtml(rec.recorder)}・送出時間：${rec.time}`;
   done.style.display = 'none';
   preview.style.display = 'block';
+  document.getElementById('chair-sign-alert').innerHTML = '';
+  setTimeout(initChairCanvas, 50);
+}
+
+function populateLoadRecordSelect() {
+  const sel = document.getElementById('load-record-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— 選擇要編輯的紀錄 —</option>' +
+    store.records.map(r => `<option value="${r.notionId||r.id}">${r.no} ${escHtml(r.meetingName)}（${r.content.type}）${r.chairSignature ? ' ✓已簽核' : ''}</option>`).join('');
+}
+
+function loadRecordToEdit() {
+  const id = document.getElementById('load-record-select').value;
+  if (!id) { alert('請選擇要編輯的紀錄'); return; }
+  editRecord(id);
+}
+
+function resetChairSign() {
+  document.getElementById('chair-sign-done').style.display = 'none';
+  document.getElementById('chair-record-preview').style.display = 'block';
   document.getElementById('chair-sign-alert').innerHTML = '';
   setTimeout(initChairCanvas, 50);
 }
@@ -2435,18 +2568,17 @@ async function exportDocx(recordId) {
       xml = xml.replace(chairRe, '$1' + chairText + '$3');
     }
 
-    // ── 主持人簽名圖（暫時停用，只顯示文字）───────────
-    if (false && r.chairSignature && r.chairSignature.startsWith('data:image/')) {
+    // ── 主持人簽名圖 ───────────────────────────────
+    if (r.chairSignature && r.chairSignature.startsWith('data:image/')) {
       const sigRId = 'rIdChairSig1';
       const sigB64 = r.chairSignature.split(',')[1];
       const chairSigExt = r.chairSignature.includes('image/jpeg') ? 'jpg' : 'png';
-      const chairSigMime = r.chairSignature.includes('image/jpeg') ? 'image/jpeg' : 'image/png';
       zip.file('word/media/chairsig.' + chairSigExt, b64ToArr(sigB64));
       relsXml = relsXml.replace('</Relationships>',
         `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.${chairSigExt}"/></Relationships>`);
-      const imgXml = `<w:p><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1270000" cy="396240"/><wp:docPr id="99" name="chairsig"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="sig"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${sigRId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="396240"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
-      // 插在「主持人簽章：」段落之後
-      xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?<\/w:p>)/, `$1${imgXml}`);
+      const imgXml = `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1270000" cy="396240"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="99" name="chairsig"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="99" name="chairsig"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${sigRId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="396240"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+      // 插在「主持人簽章：」段落的 </w:p> 前
+      xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?)(<\/w:p>)/, `$1${imgXml}$2`);
     }
 
     // ── 出席人員簽名圖（暫時停用）─────────────────────
@@ -2543,7 +2675,7 @@ function renderRecordsList() {
         <td>${escHtml(r.recorder)}</td>
         <td>${r.time}</td>
         <td>${signed}</td>
-        <td style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" onclick="viewRecord('${r.notionId||r.id}')">查看</button>${exportBtn}<button class="btn btn-sm" style="color:var(--danger);border:1px solid #e0aaaa;padding:5px 12px;" onclick="deleteRecord('${r.notionId||r.id}')">🗑 刪除</button></td>
+        <td style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" onclick="viewRecord('${r.notionId||r.id}')">查看</button><button class="btn btn-outline btn-sm" onclick="editRecord('${r.notionId||r.id}')">✏ 編輯</button>${exportBtn}<button class="btn btn-sm" style="color:var(--danger);border:1px solid #e0aaaa;padding:5px 12px;" onclick="deleteRecord('${r.notionId||r.id}')">🗑 刪除</button></td>
       </tr>`;
     }).join('')}
     </tbody></table>`;
