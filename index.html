@@ -2526,9 +2526,6 @@ async function exportDocx(recordId) {
     // ── 日期時間地點 ───────────────────────────────
     // 日期格式：2026年05月21日
     const dateFormatted = c.date ? c.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$1年$2月$3日') : '';
-    // 把日期填入「年月日」欄（精確字串替換）
-    // 日期：用佔位符替換（模板裡已有 {{日期}}）
-    xml = xml.replace('{{日期}}', xe(dateFormatted));
     if (!isCase) {
       // 期刊模板：用佔位符替換
       xml = xml.replace('{{日期}}', xe(dateFormatted));
@@ -2540,13 +2537,6 @@ async function exportDocx(recordId) {
       xml = xml.replace('{{主持人}}', xe(c.chair||''));
       xml = xml.replace('{{主講人}}', xe(c.speaker||''));
       xml = xml.replace('{{紀錄人}}', xe(r.recorder||''));
-    } else {
-      xml = fillAfterLabel(xml, '起:', c.start||'');
-      xml = fillAfterLabel(xml, '迄:', c.end||'');
-      xml = fillAfterLabel(xml, '地  點', c.location||'');
-      xml = fillAfterLabel(xml, '主持人', c.chair||'');
-      xml = fillAfterLabel(xml, '主講人', c.speaker||'');
-      xml = fillAfterLabel(xml, '紀錄人', r.recorder||'');
     }
 
     // ── 內容依類型 ─────────────────────────────────
@@ -2556,8 +2546,6 @@ async function exportDocx(recordId) {
       // 病例模板用佔位符替換
       xml = xml.replace('{{日期}}', xe(dateFormatted));
       xml = xml.replace('{{主持人}}', xe(c.chair||''));
-      xml = xml.replace('{{主講人}}', xe(c.speaker||''));
-      xml = xml.replace('{{紀錄人}}', xe(r.recorder||''));
       xml = xml.replace('{{床號}}', xe(p.bed||''));
       xml = xml.replace('{{姓名}}', xe(p.name||''));
       xml = xml.replace('{{病歷號}}', xe(p.mrn||''));
