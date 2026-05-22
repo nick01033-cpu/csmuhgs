@@ -2546,6 +2546,8 @@ async function exportDocx(recordId) {
       // 病例模板用佔位符替換
       xml = xml.replace('{{日期}}', xe(dateFormatted));
       xml = xml.replace('{{主持人}}', xe(c.chair||''));
+      xml = xml.replace('{{主講人}}', xe(c.speaker||''));
+      xml = xml.replace('{{紀錄人}}', xe(r.recorder||''));
       xml = xml.replace('{{床號}}', xe(p.bed||''));
       xml = xml.replace('{{姓名}}', xe(p.name||''));
       xml = xml.replace('{{病歷號}}', xe(p.mrn||''));
@@ -2567,13 +2569,6 @@ async function exportDocx(recordId) {
       spiritFull.forEach((f,i) => xml = toggleCb(xml, spiritKeys[i], (p.spiritChecked||[]).includes(f)));
       socialFull.forEach((f,i) => xml = toggleCb(xml, socialKeys[i], (p.socialChecked||[]).some(k => k.includes(socialKeys[i].slice(0,4)))));
       xml = toggleCb(xml, '其它', (p.otherChecked||[]).length > 0);
-
-      // Q&A
-      const qas = c.qas || [];
-      if (qas.length) {
-        const qa0 = qas[0];
-        xml = fillAfterLabel(xml, '討論(Q&A)', `Dr. ${qa0.asker||'　　　'}　問：${qa0.question||''}\nDr. ${qa0.answerer||'　　　'}　答：${qa0.answer||''}`);
-      }
     } else {
       const j = c.journal || {};
       // 期刊模板用 {{佔位符}} 直接替換
