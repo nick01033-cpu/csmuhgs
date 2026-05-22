@@ -2282,8 +2282,10 @@ function isChairCanvasEmpty() {
 function populateChairRecordSelect() {
   const sel = document.getElementById('chair-record-select');
   const unsigned = store.records.filter(r => !r.chairSignature);
-  sel.innerHTML = '<option value="">— 請選擇待簽核紀錄 —</option>' +
-    unsigned.map(r => `<option value="${r.id}">${escHtml(r.meetingName)} — 紀錄人：${escHtml(r.recorder)}（${r.no}）</option>`).join('');
+  const signed = store.records.filter(r => r.chairSignature);
+  sel.innerHTML = '<option value="">— 請選擇紀錄 —</option>' +
+    (unsigned.length ? '<optgroup label="待簽核">' + unsigned.map(r => `<option value="${r.notionId||r.id}">${escHtml(r.meetingName)} — 紀錄人：${escHtml(r.recorder)}（${r.no}）</option>`).join('') + '</optgroup>' : '') +
+    (signed.length ? '<optgroup label="已簽核（可重新簽核）">' + signed.map(r => `<option value="${r.notionId||r.id}">✓ ${escHtml(r.meetingName)} — 紀錄人：${escHtml(r.recorder)}（${r.no}）</option>`).join('') + '</optgroup>' : '');
   document.getElementById('chair-record-preview').style.display = 'none';
   document.getElementById('chair-sign-done').style.display = 'none';
   document.getElementById('chair-sign-name').value = '';
