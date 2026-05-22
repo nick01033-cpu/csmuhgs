@@ -2072,6 +2072,9 @@ function editRecord(recordId) {
   if (!r) return;
   const c = r.content;
 
+  // 先設定編輯 ID（在 showPage 之前）
+  currentEditRecordId = r.notionId || r.id;
+
   // 切到填寫頁面
   showPage('record');
 
