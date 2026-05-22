@@ -1217,7 +1217,7 @@
 <!-- 發布公告 -->
 <div class="modal-overlay" id="modal-announce">
   <div class="modal">
-    <div class="modal-title">發布公告<span style="cursor:pointer;font-size:20px;font-weight:300;" onclick="closeModal('modal-announce')">×</span></div>
+    <div class="modal-title" id="ann-modal-title">發布公告<span style="cursor:pointer;font-size:20px;font-weight:300;" onclick="closeModal('modal-announce')">×</span></div>
     <div class="form-group">
       <label class="required">標題</label>
       <input type="text" id="ann-title" placeholder="公告標題">
@@ -1250,6 +1250,7 @@
       <input type="text" id="ann-attachment" placeholder="https://... 貼上檔案連結">
       <input type="text" id="ann-attachment-name" placeholder="附件名稱（例如：會議議程.pdf）" style="margin-top:6px;">
     </div>
+    <input type="hidden" id="ann-edit-id">
     <div style="display:flex; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeModal('modal-announce')">取消</button>
       <button class="btn btn-primary" onclick="saveAnnouncement()">發布</button>
@@ -1446,6 +1447,17 @@ async function createAnnouncement(obj) {
     const res = await notionFetch('POST', '/db/announcements/rows', obj);
     obj.notionId = res.id;
     store.announcements.push(obj);
+    renderAdminAnnouncements();
+    renderAnnouncements();
+  } finally { hideGlobalLoading(); }
+}
+
+async function updateAnnouncement(notionId, obj) {
+  showGlobalLoading('更新公告中…');
+  try {
+    await notionFetch('PATCH', `/db/announcements/rows/${notionId}`, obj);
+    const idx = store.announcements.findIndex(a => a.notionId == notionId);
+    if (idx >= 0) store.announcements[idx] = { ...store.announcements[idx], ...obj, notionId };
     renderAdminAnnouncements();
     renderAnnouncements();
   } finally { hideGlobalLoading(); }
@@ -1737,6 +1749,7 @@ function renderAdminAnnouncements() {
         <div class="ann-title">${escHtml(a.title)}</div>
         <div style="display:flex;gap:6px;align-items:center;">
           <span class="badge ${badgeClass}">${a.level}</span>
+          <button class="btn-icon" onclick="editAnn('${a.notionId}')" title="編輯">✏️</button>
           <button class="btn-icon" onclick="deleteAnn('${a.notionId}')" title="刪除">🗑</button>
         </div>
       </div>
@@ -1746,14 +1759,15 @@ function renderAdminAnnouncements() {
   }).join('');
 }
 
-function openAnnModal() { openModal('modal-announce'); }
+function openAnnModal() { openAnnounceModal(); }
 
 async function saveAnnouncement() {
   const title = document.getElementById('ann-title').value.trim();
   const content = document.getElementById('ann-content').value.trim();
   if (!title || !content) { alert('請填寫標題與內容'); return; }
+  const editId = document.getElementById('ann-edit-id').value;
   const obj = {
-    id: Date.now(),
+    id: editId || Date.now(),
     title,
     content: JSON.stringify({
       text: content,
@@ -1766,18 +1780,46 @@ async function saveAnnouncement() {
     date: new Date().toISOString().slice(0,10)
   };
   closeModal('modal-announce');
-  document.getElementById('ann-title').value = '';
-  document.getElementById('ann-content').value = '';
-  document.getElementById('ann-author').value = '';
-  document.getElementById('ann-image').value = '';
-  document.getElementById('ann-attachment').value = '';
-  document.getElementById('ann-attachment-name').value = '';
-  await createAnnouncement(obj);
+  if (editId) {
+    await updateAnnouncement(editId, obj);
+  } else {
+    await createAnnouncement(obj);
+  }
 }
 
 async function deleteAnn(notionId) {
   if (!confirm('確定要刪除此公告？')) return;
   await deleteAnnouncement(notionId);
+}
+
+function editAnn(notionId) {
+  const a = store.announcements.find(a => a.notionId == notionId);
+  if (!a) return;
+  let text = a.content, img = '', att = '', attName = '';
+  try { const p = JSON.parse(a.content); text = p.text||''; img = p.image||''; att = p.attachment||''; attName = p.attachmentName||''; } catch(e) {}
+  document.getElementById('ann-modal-title').childNodes[0].textContent = '編輯公告';
+  document.getElementById('ann-title').value = a.title || '';
+  document.getElementById('ann-content').value = text;
+  document.getElementById('ann-level').value = a.level || '一般';
+  document.getElementById('ann-author').value = a.author || '';
+  document.getElementById('ann-image').value = img;
+  document.getElementById('ann-attachment').value = att;
+  document.getElementById('ann-attachment-name').value = attName;
+  document.getElementById('ann-edit-id').value = notionId;
+  openModal('modal-announce');
+}
+
+function openAnnounceModal() {
+  document.getElementById('ann-modal-title').childNodes[0].textContent = '發布公告';
+  document.getElementById('ann-title').value = '';
+  document.getElementById('ann-content').value = '';
+  document.getElementById('ann-level').value = '一般';
+  document.getElementById('ann-author').value = '';
+  document.getElementById('ann-image').value = '';
+  document.getElementById('ann-attachment').value = '';
+  document.getElementById('ann-attachment-name').value = '';
+  document.getElementById('ann-edit-id').value = '';
+  openModal('modal-announce');
 }
 
 /* ============================================================
