@@ -2552,11 +2552,20 @@ async function exportDocx(recordId) {
     // ── 內容依類型 ─────────────────────────────────
     if (isCase) {
       const p = c.case || {};
-      xml = fillAfterLabel(xml, '床號', p.bed||'');
-      xml = fillAfterLabel(xml, '姓名', p.name||'');
-      xml = fillAfterLabel(xml, '病歷號碼', p.mrn||'');
-      xml = fillAfterLabel(xml, '年齡', p.age||'');
-      xml = fillAfterLabel(xml, '性別', p.gender||'');
+
+      // 病例模板用佔位符替換
+      xml = xml.replace('{{日期}}', xe(dateFormatted));
+      xml = xml.replace('{{主持人}}', xe(c.chair||''));
+      xml = xml.replace('{{主講人}}', xe(c.speaker||''));
+      xml = xml.replace('{{紀錄人}}', xe(r.recorder||''));
+      xml = xml.replace('{{床號}}', xe(p.bed||''));
+      xml = xml.replace('{{姓名}}', xe(p.name||''));
+      xml = xml.replace('{{病歷號}}', xe(p.mrn||''));
+      xml = xml.replace('{{年齡}}', xe(p.age||''));
+      xml = xml.replace('{{性別}}', xe(p.gender||''));
+      xml = xml.replace('{{病歷摘要}}', xe(p.summary||''));
+      xml = xml.replace('{{診斷}}', xe(p.diagnosis||''));
+      xml = xml.replace('{{實證醫學}}', xe(p.evidence||''));
 
       // 全人照護勾選
       const psychFull  = ['醫學人文、醫病關懷、醫病溝通','SDM、醫病溝通及衛教','健康促進、疾病防治與病友團隊活動','失智友善照護'];
@@ -2570,12 +2579,6 @@ async function exportDocx(recordId) {
       spiritFull.forEach((f,i) => xml = toggleCb(xml, spiritKeys[i], (p.spiritChecked||[]).includes(f)));
       socialFull.forEach((f,i) => xml = toggleCb(xml, socialKeys[i], (p.socialChecked||[]).some(k => k.includes(socialKeys[i].slice(0,4)))));
       xml = toggleCb(xml, '其它', (p.otherChecked||[]).length > 0);
-
-      // 生理說明文字：找「生理」標籤 cell 後的空 t
-      xml = fillAfterLabel(xml, '生理(給予', p.bio||'');
-      xml = fillAfterLabel(xml, '病歷摘要', p.summary||'');
-      xml = fillAfterLabel(xml, '診斷', p.diagnosis||'');
-      xml = fillAfterLabel(xml, '實證醫學佐證', p.evidence||'');
 
       // Q&A
       const qas = c.qas || [];
