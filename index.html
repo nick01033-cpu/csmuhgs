@@ -2893,9 +2893,11 @@ function toTimeInput(val) {
 }
 
 function autoLink(text) {
-  // 自動把網址變成可點擊連結
-  return escHtml(text).replace(/(https?:\/\/[^\s<>"]+)/g,
-    '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary);word-break:break-all;">$1</a>');
+  // 自動把網址變成可點擊連結（支援 https:// http:// www.）
+  return escHtml(text).replace(/(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+)/g, (match) => {
+    const href = match.startsWith('www.') ? 'https://' + match : match;
+    return `<a href="${href}" target="_blank" rel="noopener" style="color:var(--primary);word-break:break-all;">${match}</a>`;
+  });
 }
 
 function escHtml(str) {
