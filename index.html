@@ -2433,7 +2433,7 @@ async function exportDocx(recordId) {
     }
 
     // ── 主持人簽名圖（暫時停用，只顯示文字）───────────
-    if (false && r.chairSignature && r.chairSignature.startsWith('data:image/')) {
+    if (r.chairSignature && r.chairSignature.startsWith('data:image/')) {
       const sigRId = 'rIdChairSig1';
       const sigB64 = r.chairSignature.split(',')[1];
       const chairSigExt = r.chairSignature.includes('image/jpeg') ? 'jpg' : 'png';
@@ -2446,8 +2446,38 @@ async function exportDocx(recordId) {
       xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?<\/w:p>)/, `$1${imgXml}`);
     }
 
-    // ── 出席人員簽名圖（暫時停用）─────────────────────
-    // meetingCheckins.forEach((ci, i) => { ... });
+    // ── 出席人員簽名圖 ─────────────────────────────
+    meetingCheckins.forEach((ci, i) => {
+      if (!ci.signature || !ci.signature.startsWith('data:image/')) return;
+      const rId = `rIdSig${i}`;
+      const sigExt = ci.signature.includes('image/jpeg') ? 'jpg' : 'png';
+      const fname = `attendsig${i}.${sigExt}`;
+      zip.file(`word/media/${fname}`, b64ToArr(ci.signature.split(',')[1]));
+      relsXml = relsXml.replace('</Relationships>',
+        `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/></Relationships>`);
+      // 找出席人員表格第 i+2 列的簽到欄（最後一個 tc）插入簽名圖
+      const sigImgXml = `<w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="800000" cy="300000"/><wp:docPr id="${100+i}" name="${fname}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${100+i}" name="${fname}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="800000" cy="300000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+      // 在出席人員對應列的最後一個空 run 插入
+      const attendRows = xml.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || [];
+      let dataRowCount = 0;
+      xml = xml.replace(/<w:tr[ >][\s\S]*?<\/w:tr>/g, tr => {
+        const isHeader = tr.includes('>編號<') || tr.includes('>科  別<');
+        const tcCount = (tr.match(/<w:tc>/g)||[]).length;
+        if (!isHeader && tcCount >= 5) {
+          if (dataRowCount === i) {
+            dataRowCount++;
+            // 在最後一個 tc 的 </w:p> 前插入簽名
+            const lastP = tr.lastIndexOf('</w:p>');
+            if (lastP >= 0) {
+              return tr.slice(0, lastP) + sigImgXml + tr.slice(lastP);
+            }
+            return tr;
+          }
+          dataRowCount++;
+        }
+        return tr;
+      });
+    });
 
     // 清除所有未替換的佔位符（避免破壞 XML 結構）
     xml = xml.replace(/\{\{[^}]+\}\}/g, '');
