@@ -2137,6 +2137,8 @@ function editRecord(recordId) {
     showAlert(document.getElementById('record-alert'), 'info', `✏ 正在編輯紀錄 ${r.no}，修改後請點「送出紀錄」`);
   }, 100);
 }
+
+async function submitRecord() {
   const meetingId = document.getElementById('record-meeting').value;
   const recorder = document.getElementById('rec-recorder').value.trim();
   const alertEl = document.getElementById('record-alert');
@@ -2582,7 +2584,8 @@ async function exportDocx(recordId) {
     }
 
     // ── 出席人員簽名圖（暫時停用）─────────────────────
-    meetingCheckins.forEach((ci, i) => { return; // 暫停
+    meetingCheckins.forEach((ci, i) => {
+      if (false) { // 暫時停用出席人員簽名
       if (!ci.signature || !ci.signature.startsWith('data:image/')) return;
       const rId = `rIdSig${i}`;
       const sigExt = ci.signature.includes('image/jpeg') ? 'jpg' : 'png';
@@ -2620,6 +2623,7 @@ async function exportDocx(recordId) {
         });
         xml = xml.slice(0, ts2) + newTableXml2 + xml.slice(te2);
       }
+      } // end if(false)
     });
 
     // 清除所有未替換的佔位符（避免破壞 XML 結構）
