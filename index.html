@@ -2899,6 +2899,8 @@ function toDirectImgUrl(url) {
   if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
   return url;
 }
+
+function autoLink(text) {
   // 自動把網址變成可點擊連結（支援 https:// http:// www.）
   return escHtml(text).replace(/(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+)/g, (match) => {
     const href = match.startsWith('www.') ? 'https://' + match : match;
