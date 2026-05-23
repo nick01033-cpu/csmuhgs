@@ -2026,12 +2026,25 @@ function compressSignature(sourceCanvas) {
   small.width = 200;
   small.height = 80;
   const ctx = small.getContext('2d');
-  // 先填白色背景（避免 JPEG 透明區域變黑）
+  // 白色背景
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, 200, 80);
   ctx.drawImage(sourceCanvas, 0, 0, 200, 80);
+
+  // 提高對比度：把灰色像素推向黑或白
+  const imgData = ctx.getImageData(0, 0, 200, 80);
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i+1], b = d[i+2];
+    const brightness = (r + g + b) / 3;
+    // 比 200 暗的視為筆跡，強制變黑；其餘變白
+    const val = brightness < 200 ? 0 : 255;
+    d[i] = d[i+1] = d[i+2] = val;
+  }
+  ctx.putImageData(imgData, 0, 0);
+
   // 逐步降低品質直到 base64 長度在 1800 字元以內
-  let quality = 0.5;
+  let quality = 0.7;
   let result = small.toDataURL('image/jpeg', quality);
   while (result.split(',')[1].length > 1800 && quality > 0.1) {
     quality -= 0.05;
