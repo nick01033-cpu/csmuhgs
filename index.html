@@ -2580,6 +2580,25 @@ async function exportDocx(recordId) {
       spiritFull.forEach((f,i) => xml = toggleCb(xml, spiritKeys[i], (p.spiritChecked||[]).includes(f)));
       socialFull.forEach((f,i) => xml = toggleCb(xml, socialKeys[i], (p.socialChecked||[]).some(k => k.includes(socialKeys[i].slice(0,4)))));
       xml = toggleCb(xml, '其它', (p.otherChecked||[]).length > 0);
+
+      // Q&A 填入（找 Dr._____ 空格替換成醫師名字）
+      const qas = c.qas || [];
+      const QA_BLANK = '         '; // 9個空格（底線）
+      let qaXml = xml;
+      let qaFilled = 0;
+      qas.forEach(qa => {
+        // 替換第一個未填的問醫師名字
+        qaXml = qaXml.replace(
+          `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t>`,
+          `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(qa.asker||'')}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：${xe(qa.question||'')}</w:t>`
+        );
+        // 替換對應的答醫師名字
+        qaXml = qaXml.replace(
+          `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t>`,
+          `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(qa.answerer||'')}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：${xe(qa.answer||'')}</w:t>`
+        );
+      });
+      xml = qaXml;
     } else {
       const j = c.journal || {};
       // 期刊模板用 {{佔位符}} 直接替換
