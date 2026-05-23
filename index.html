@@ -2763,7 +2763,18 @@ async function exportDocx(recordId) {
         relsXml = relsXml.replace('</Relationships>',
           `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.${chairSigExt}"/></Relationships>`);
         const imgXml = `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1270000" cy="396240"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="99" name="chairsig"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="99" name="chairsig"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${sigRId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="396240"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
-        xml = xml.replace(/(<w:t>主持人簽章：<\/w:t>[\s\S]{0,400}?)(<\/w:p>)/, `$1${imgXml}$2`);
+        // 找「主持人簽章：」所在段落，在最後一個 </w:r> 後、</w:p> 前插入
+        const chairSigIdx = xml.indexOf('<w:t>主持人簽章：</w:t>');
+        if (chairSigIdx >= 0) {
+          const pEnd = xml.indexOf('</w:p>', chairSigIdx);
+          if (pEnd >= 0) {
+            // 找這個 </w:p> 前最後一個 </w:r> 的位置
+            const lastREnd = xml.lastIndexOf('</w:r>', pEnd);
+            if (lastREnd >= 0) {
+              xml = xml.slice(0, lastREnd + '</w:r>'.length) + imgXml + xml.slice(lastREnd + '</w:r>'.length);
+            }
+          }
+        }
       } catch(e) {
         console.warn('主持人簽名無法載入（可能被截斷）:', e.message);
       }
