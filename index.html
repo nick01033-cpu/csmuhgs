@@ -1219,6 +1219,21 @@
   </div>
 </div>
 
+<!-- 出席人員設定 -->
+<div class="modal-overlay" id="modal-attendees">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">設定出席人員<span style="cursor:pointer;font-size:20px;font-weight:300;" onclick="closeModal('modal-attendees')">×</span></div>
+    <div class="form-group">
+      <label id="attendees-meeting-name" style="font-weight:600;margin-bottom:8px;display:block;"></label>
+      <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border2);border-radius:var(--radius);padding:8px;" id="attendees-list"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1rem;">
+      <button class="btn btn-outline" onclick="closeModal('modal-attendees')">取消</button>
+      <button class="btn btn-primary" onclick="saveAttendees()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 發布公告 -->
 <div class="modal-overlay" id="modal-announce">
   <div class="modal">
@@ -1871,10 +1886,41 @@ function renderAdminMeetings() {
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <span class="badge ${bc}">${m.type}</span>
+        <button class="btn btn-outline btn-sm" onclick="editAttendees('${m.notionId||m.id}')">👥 出席名單</button>
         <button class="btn-icon" onclick="deleteMeeting('${m.notionId}')" title="刪除">🗑</button>
       </div>
     </div>`;
   }).join('');
+}
+
+function editAttendees(meetingId) {
+  const m = store.meetings.find(m => (m.notionId||m.id) == meetingId);
+  if (!m) return;
+  document.getElementById('attendees-meeting-name').textContent = `${m.name}（${m.date}）`;
+  // 目前已設定的出席人員（員工代碼，逗號分隔）
+  const currentCodes = (m.attendees||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const list = document.getElementById('attendees-list');
+  list.innerHTML = store.persons.map(p => `
+    <label class="cb-label" style="padding:6px 4px;border-bottom:1px solid var(--border);">
+      <input type="checkbox" name="attendee" value="${escHtml(p.code)}" ${currentCodes.includes(p.code)?'checked':''}>
+      <span>${escHtml(p.name)}　<span class="text-sm text-muted">${escHtml(p.dept||'')} ${escHtml(p.title||'')}</span></span>
+    </label>`).join('');
+  list.dataset.meetingId = meetingId;
+  openModal('modal-attendees');
+}
+
+async function saveAttendees() {
+  const meetingId = document.getElementById('attendees-list').dataset.meetingId;
+  const checked = Array.from(document.querySelectorAll('input[name="attendee"]:checked')).map(cb => cb.value);
+  const attendees = checked.join(',');
+  showGlobalLoading('儲存中…');
+  try {
+    await notionFetch('PATCH', `/db/meetings/rows/${meetingId}`, { attendees });
+    const m = store.meetings.find(m => (m.notionId||m.id) == meetingId);
+    if (m) m.attendees = attendees;
+    closeModal('modal-attendees');
+    populateCheckinSelects();
+  } finally { hideGlobalLoading(); }
 }
 
 async function deleteMeeting(notionId) {
@@ -1887,8 +1933,22 @@ function populateCheckinSelects() {
   const ns = document.getElementById('checkin-name');
   ms.innerHTML = '<option value="">— 請選擇會議 —</option>' +
     store.meetings.map(m => `<option value="${m.notionId||m.id}">${escHtml(m.name)} (${m.date})</option>`).join('');
-  ns.innerHTML = '<option value="">— 請選擇姓名 —</option>' +
-    store.persons.map(p => `<option value="${p.code}">${escHtml(p.name)}</option>`).join('');
+  // 姓名下拉根據選擇的會議過濾
+  const updateNameList = () => {
+    const meetingId = ms.value;
+    const meeting = store.meetings.find(m => (m.notionId||m.id) == meetingId);
+    let persons = store.persons;
+    if (meeting && meeting.attendees) {
+      const codes = meeting.attendees.split(',').map(s=>s.trim()).filter(Boolean);
+      if (codes.length > 0) {
+        persons = store.persons.filter(p => codes.includes(p.code));
+      }
+    }
+    ns.innerHTML = '<option value="">— 請選擇姓名 —</option>' +
+      persons.map(p => `<option value="${p.code}">${escHtml(p.name)}</option>`).join('');
+  };
+  ms.onchange = () => { updateNameList(); loadPersonInfo(); };
+  updateNameList();
 }
 
 function populateRecordSelects() {
