@@ -2758,12 +2758,11 @@ async function exportDocx(recordId) {
         const sigRId = 'rIdChairSig1';
         const sigB64 = r.chairSignature.split(',')[1];
         atob(sigB64); // 驗證 base64 完整性
-        const chairSigExt = r.chairSignature.includes('image/jpeg') ? 'jpg' : 'png';
-        // 用 binary string 方式寫入（避免 Word 開啟問題）
+        // 強制用 .png（.jpg 造成 Word 無法直接開啟）
         const chairSigBinary = atob(sigB64);
-        zip.file('word/media/chairsig.' + chairSigExt, chairSigBinary, {binary: true});
+        zip.file('word/media/chairsig.png', chairSigBinary, {binary: true, optimizedBinaryString: true});
         relsXml = relsXml.replace('</Relationships>',
-          `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.${chairSigExt}"/></Relationships>`);
+          `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.png"/></Relationships>`);
         const imgXml = `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1270000" cy="396240"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="99" name="chairsig"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="99" name="chairsig"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${sigRId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="396240"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
         // 找「主持人簽章：」所在段落，在最後一個 </w:r> 後、</w:p> 前插入
         const chairSigIdx = xml.indexOf('<w:t>主持人簽章：</w:t>');
@@ -2789,10 +2788,10 @@ async function exportDocx(recordId) {
         const sigB64 = ci.signature.split(',')[1];
         atob(sigB64); // 驗證完整性
         const rId = `rIdSig${i}`;
-        const sigExt = ci.signature.includes('image/jpeg') ? 'jpg' : 'png';
-        const fname = `attendsig${i}.${sigExt}`;
+        // 強制用 .png（.jpg 造成 Word 無法直接開啟）
+        const fname = `attendsig${i}.png`;
       const attendSigBinary = atob(ci.signature.split(',')[1]);
-      zip.file(`word/media/${fname}`, attendSigBinary, {binary: true});
+      zip.file(`word/media/${fname}`, attendSigBinary, {binary: true, optimizedBinaryString: true});
       relsXml = relsXml.replace('</Relationships>',
         `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/></Relationships>`);
       // 找出席人員表格第 i+2 列的簽到欄（最後一個 tc）插入簽名圖
