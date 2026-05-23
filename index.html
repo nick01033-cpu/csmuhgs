@@ -2696,13 +2696,15 @@ async function exportDocx(recordId) {
       }
     }
 
-    // ── 出席人員簽名圖（暫時停用）─────────────────────
+    // ── 出席人員簽名圖 ─────────────────────────────
     meetingCheckins.forEach((ci, i) => {
-      if (false) { // 暫時停用出席人員簽名
       if (!ci.signature || !ci.signature.startsWith('data:image/')) return;
-      const rId = `rIdSig${i}`;
-      const sigExt = ci.signature.includes('image/jpeg') ? 'jpg' : 'png';
-      const fname = `attendsig${i}.${sigExt}`;
+      try {
+        const sigB64 = ci.signature.split(',')[1];
+        atob(sigB64); // 驗證完整性
+        const rId = `rIdSig${i}`;
+        const sigExt = ci.signature.includes('image/jpeg') ? 'jpg' : 'png';
+        const fname = `attendsig${i}.${sigExt}`;
       zip.file(`word/media/${fname}`, b64ToArr(ci.signature.split(',')[1]));
       relsXml = relsXml.replace('</Relationships>',
         `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/></Relationships>`);
@@ -2736,7 +2738,7 @@ async function exportDocx(recordId) {
         });
         xml = xml.slice(0, ts2) + newTableXml2 + xml.slice(te2);
       }
-      } // end if(false)
+      } catch(e) { console.warn('出席人員簽名失敗:', e.message); }
     });
 
     // 清除所有未替換的佔位符（避免破壞 XML 結構）
