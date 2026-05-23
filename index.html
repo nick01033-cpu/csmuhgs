@@ -2106,7 +2106,7 @@ function compressSignature(sourceCanvas) {
   // 逐步降低品質直到 base64 長度在 1800 字元以內
   let quality = 0.7;
   let result = small.toDataURL('image/jpeg', quality);
-  while (result.split(',')[1].length > 1800 && quality > 0.1) {
+  while (result.split(',')[1].length > 1500 && quality > 0.1) {
     quality -= 0.05;
     result = small.toDataURL('image/jpeg', quality);
   }
