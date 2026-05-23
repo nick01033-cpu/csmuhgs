@@ -2038,7 +2038,7 @@ function compressSignature(sourceCanvas) {
     const r = d[i], g = d[i+1], b = d[i+2];
     const brightness = (r + g + b) / 3;
     // 比 200 暗的視為筆跡，強制變黑；其餘變白
-    const val = brightness < 200 ? 0 : 255;
+    const val = brightness < 230 ? 0 : 255;
     d[i] = d[i+1] = d[i+2] = val;
   }
   ctx.putImageData(imgData, 0, 0);
