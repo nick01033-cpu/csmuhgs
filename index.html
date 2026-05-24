@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>一般外科 教學事務系統 — CSMUHGS</title>
+<title>一般外科 內部系統 — CSMUHGS</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+TC:wght@400;600&display=swap');
 
@@ -1963,18 +1963,25 @@ async function deleteMeeting(notionId) {
 function populateCheckinSelects() {
   const ms = document.getElementById('checkin-meeting');
   const ns = document.getElementById('checkin-name');
+
+  // 只顯示今天的會議
+  const today = new Date().toISOString().slice(0, 10);
+  const todayMeetings = store.meetings.filter(m => m.date === today);
+
   ms.innerHTML = '<option value="">— 請選擇會議 —</option>' +
-    store.meetings.map(m => `<option value="${m.notionId||m.id}">${escHtml(m.name)} (${m.date})</option>`).join('');
-  // 姓名下拉根據選擇的會議過濾
+    todayMeetings.map(m => `<option value="${m.notionId||m.id}">${escHtml(m.name)} (${m.start||''}${m.end?'–'+m.end:''})</option>`).join('');
+
+  if (todayMeetings.length === 0) {
+    ms.innerHTML = '<option value="">— 今日無安排會議 —</option>';
+  }
+
   const updateNameList = () => {
     const meetingId = ms.value;
     const meeting = store.meetings.find(m => (m.notionId||m.id) == meetingId);
     let persons = store.persons;
     if (meeting && meeting.attendees) {
       const codes = meeting.attendees.split(',').map(s=>s.trim()).filter(Boolean);
-      if (codes.length > 0) {
-        persons = store.persons.filter(p => codes.includes(p.code));
-      }
+      if (codes.length > 0) persons = store.persons.filter(p => codes.includes(p.code));
     }
     ns.innerHTML = '<option value="">— 請選擇姓名 —</option>' +
       persons.map(p => `<option value="${p.code}">${escHtml(p.name)}</option>`).join('');
