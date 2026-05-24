@@ -3,33 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>一般外科 內部系統 — CSMUHGS</title>
+<title>一般外科 教學事務系統 — CSMUHGS</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+TC:wght@400;600&display=swap');
 
   :root {
-    --bg: #f5f3ef;
+    --bg: #f0f2f5;
     --surface: #ffffff;
-    --surface2: #f0ede7;
-    --border: #ddd9d0;
-    --border2: #c8c3b8;
-    --text: #1a1916;
-    --text2: #6b6660;
-    --text3: #9b9690;
-    --accent: #2d5a3d;
-    --accent2: #3d7a55;
-    --accent-light: #e8f2ec;
-    --accent-border: #a8cdb5;
-    --danger: #8b2020;
-    --danger-light: #fdf0f0;
-    --warn: #7a5c1a;
-    --warn-light: #fdf6e3;
-    --info: #1a3d5a;
-    --info-light: #e8f0f5;
+    --surface2: #f8f9fa;
+    --border: #e5e7eb;
+    --border2: #d1d5db;
+    --text: #111827;
+    --text2: #6b7280;
+    --text3: #9ca3af;
+    --accent: #003087;
+    --accent2: #001f5b;
+    --accent-light: #eff6ff;
+    --accent-border: #bfdbfe;
+    --orange: #e85d04;
+    --orange-light: #fff7ed;
+    --danger: #c1121f;
+    --danger-light: #fef2f2;
+    --warn: #92400e;
+    --warn-light: #fef3c7;
+    --info: #1d4ed8;
+    --info-light: #eff6ff;
     --radius: 6px;
     --radius-lg: 10px;
     --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -45,7 +47,7 @@
 
   /* === HEADER === */
   header {
-    background: var(--accent);
+    background: linear-gradient(135deg, #003087 0%, #001f5b 100%);
     color: #fff;
     padding: 0 2rem;
     display: flex;
@@ -55,7 +57,7 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 12px rgba(0,48,135,0.3);
   }
 
   .header-brand {
@@ -679,6 +681,19 @@
     min-height: 56px;
   }
 
+  /* 行事曆 */
+  .cal-day-label { text-align:center; font-size:11px; color:var(--text3); padding:4px 0; font-weight:500; }
+  .cal-day { text-align:center; padding:4px 2px; font-size:13px; color:var(--text); border-radius:6px; cursor:default; min-height:32px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px; }
+  .cal-day.has-meeting { font-weight:600; color:var(--accent); cursor:pointer; }
+  .cal-day.has-meeting:hover { background:var(--accent-light); }
+  .cal-day.today { background:var(--accent-light); color:var(--accent); font-weight:700; border-radius:50%; }
+  .cal-day.other-month { color:var(--text3); }
+  .cal-dot { width:5px; height:5px; border-radius:50%; background:var(--orange); }
+  .cal-meeting-item { display:flex; gap:10px; align-items:flex-start; padding:10px; border-radius:8px; border:1px solid var(--border); margin-bottom:6px; }
+  .cal-meeting-date { min-width:40px; text-align:center; background:var(--accent-light); border-radius:6px; padding:6px 4px; }
+  .cal-meeting-date-day { font-size:18px; font-weight:700; color:var(--accent); line-height:1; }
+  .cal-meeting-date-month { font-size:10px; color:var(--text2); margin-top:2px; }
+
   /* === QA === */
   .qa-entry {
     background: var(--surface2);
@@ -759,7 +774,7 @@
 <!-- HEADER -->
 <header>
   <div class="header-brand" ondblclick="promptAdmin()">
-    <div class="header-logo">🏥</div>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAMAAAC5zwKfAAADAFBMVEUJAziGg6GGHypHQ2iiRlHFw93NTxnLZzVBAB3ZhFwmIkrpSQ0MAmXqo3xoZYn/5Mqlo7znVxshAmLkZi/IRz/uhVjsCQFmTm8lATDeKQCghJLLWyv/895NRJb/xJ8ZEWX6SQcrI3TulGnlWCzNsdJrZLS3s9cXEznlaDsNAnyLhcbws5LQeVQeFGrX0/joeUn5VhNRUn8TCzp4c6HuKwRKLE/aVxvx9vjnGAHpUCcSA2numXjaThTm5P6ppN/tOAQ4M2MfE4TZZzX7pn87NXWXlLj69fb5ThxSTHLOxvXKXzjtimZya4zTkGZPUZH+5tvZUCK5tOr0e07YWCjpUBSNhbbZbUPgy9/8Xxz6q40tJWMLBE8qHmwiG0+YlMidldL5DQrYXDvjhW37mnhLRH+Dfa36Twp7dbQVC2dqZZx1JjzmXiIyJYLtuKETClD8OA/5WyxBNYivq9D0bT5nDSQjG2Xne1YZE08VCX/+/v3ig1z/07baeErXXivlcEPzFwWZa3aNNEhjXJjyvryZe3uqPECDfMBiXIRpEyy7WSri3f6+ZUFWEjqfm8HRQQ6HKTgkAEpDPHJXByr/3MnCvO55Fh7UUUb9ZxOYe4odDoKyreOjm+24SEcZEX6XLDf/0MdcVK5EPIX/yat8U3NWTZiSid41AD0tIpLHxO88ACBkXLJzbLjBvd76LAxGAzPsqIpYU4KHhLPLakQoImHKV1hybKF8c9D+u6C8QjpyR2AyFks8NItoDS2CedtzGjexdlT+tpPklXCck8L+7d7LUCb6lmlSS4NbVZTXWVGhnNKeNUK2lsXeQAn/ZyWSf7bc2/vq6vw9OWTgjW/3h1qTjcj4jGbHUVBRSpPkYDB9eqCtqt/QzPQxK2I0LHeak9/be1YeDWwYGWBHPaL/+eAuKXLuQgQmGoX/271pHTq9T0xcWYKnpM+ILUweGjsdGU4OCWK8ute9uun/69GQi7b7QQzii2PzHwT73O7qEALlHwDt5v/w7f0NCTiJiqJOSmn///8j2zwcAAABAHRSTlP///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8AU/cHJQAAC+ZJREFUeNqlWW9sFMcVdz7QKLlVnUvqfOHCbUxTWFrDiag3YmunAdN3oUGpiTckzhYSihk2srKJIoH3YaASHxIJiSrIqBGoJ4IVtVZDBARR90slJxeHRk1qo0QiCVicOwE+RPHSC1GRLw19b3bP9h3mb8dwN7s789v39zdv5uouX68BKFU/cOjQob4UAF53eN21wQq3m9SkKSV9UjNl5mfqVgHhDAOYt5cUIgL/AzWYZNhMAW8eELIkUnMKpxqgoj+E9Qkpz/bhzQEWSIw2Mhk1D6PvtO35+Qha9MyWZhZvHDCVM7PrIRbMir+LCwLDiyTljyWmnBFyBkBwzGSPEM/ti4AO4BMxsC2GdSeIIB3T7LsRQHVWttGMBSN2NO8vVhABQrg0ku7cMH7CT1LN5nx1PUCYn3DY8kXvqNYV9lrWMQ1oW+csiwDD9E6rYodtZuL8tQHRkY4eGmxMp/ewPC1eNNlb+7cmtKnTbxlpO4iNmUrKnmsBioS5PVJrF9rDeQ1Vtn7Nd9JoGNo3Ymk6b+kuS07RNXR1QDDlHJoZSbTCFr4G/LdVjm6Fa9iAYRkVq/7+8si2j5qrrwYoZKKEp0UYxZrlRRNCPBAcJwBrr0dyvTxxzAhwE10HXrFcpCFwj3x8ZkCUSQXWiTCvlX4IAzsdRoFdtNKUd3SLXAN46kFtir0olo/pV2Zlx0yAdL+eTGWtCexVpLZAzAe7EL+EOJTLWuDjuBaRLThC4Ngf2eKMWT8DYFZ+QyD4J/uZPWw0eMS1TleyuDTQun7gPywlqiMYLgDyNfWbmuIBWYlXAPbIRDTZ7g7uW3pK9//8LmIpK+Xq3pQiUlydMB1mCxJwr+UXN1giJg1UiYyoAUS5rcIqQeCNRHHm4yFz7nTCwUIi00jWGBaWCIzh6F7nuQfxvGysBsQ2qeI5NNIzIGCKueNiPVY1NmZJbgX3jX88ZkWXYukDQQtiUqaqAHvk45VJ4l18JpyYsLA3c14IvKIJEqcECnSqUxKKBd2cQc0mTgNEKckuFF0Pv8yCThzI4/eT7wnAq7Rlv1No6ad200Tw+gPU7TEbpgHOkYNsPE9h3iBFxKnj2HUHXqM1JvVXU9EO8nZkjS2RiBoQTVPfa7KG4XiUaPI8XrMVJL04X7a6800VBj47OAnYO+kROzy3dynjAX6Yc6gl6W/qy6l8pUCZEI4GR1oCcRoid2W0iHWRBSNr/bcfxyxKN1g3iHPvtm3bsm1jVH9RM2z7cIttuy7121EMZMFaeH8+Jo43yP1mKgYEczC6q0JjjJeNRUmBuRikiL5d9LmPi41+9Dci918lCeav/iDfpEPH9/B+YqasEwO+nZl0p2C+B86Z+TzvJNgh+HYnaMB4FL3F+Ct3khyrwCyWB879ZRI0IJqSySNaIkUR0dEz/0Dy+Xh3tE5pwG57FthHkE2Q04OlQHt0xPKMDXvv30lLl3xbAyo5ZwEub1oVLIjCONWuZUkEhu3TamQvx5MaEOYtfgk77wLDsl+N8rFNVagoEAFNllIDzpUo0pZFOReplIhUS/2RJbyARp14BS3SM1qrcDdhL4EoZ6SYVcznAwsfE00hYDORTl2UJRBa7l5LpwY4sT0v2tHSQazlxl5+qMxfhjEY6SIYOPRsPBqNK5CfGbALcWGRTLCUdAQcqsRkw+8r7e+TvR+s48u2ihPV6mhBja9VZosGPCQQyp6V54pgB+YmPZ68Ij80xWJvsgIIEi3Ln0p5M0GAylTT2QkSkwzT3MPXvckMJUh9jpMlydGB5hSCo6oIKWsSYEZWCbGlY0qejE568WJrRweqVvoEmg2F5qnRffdUTR40se5yWxWgcKYxdDOLsvkeSFJF59D/bBwsUyPUpIG+O00eTEkCdBJTVuVgnW4ydnjz7HbZ/kuAuT2DgNOjoGY4lwUgoQ5zBBiGvp+2DZcNNH04v/8MzIUl7CKV04BbflUNCP6KsdA2PH8xX6o6Wt6RUiF6CXFlZvrwPjJoY1fXtmzb8+zZHv6oEpDeD+kV7H0ou7GEDNjtfhaXHVjtoosgAHRJDDwJFA5Vu4GJr1xH1fKbgmFjCcE/OR6GYd6+AnD1FlQAsxkKSoqRc9WRycRNrn9/3rtYFrHKDhcyAjyh+FE1IM0vKJVShCe2KuWIUmMNoCC1YDJbSOXLDlntMPVd2PNyWBW1ukZNUSACERrUDwH5Iwe1EiJ7xCOv+qBteNkhqd2DLJzgIoOWi6pkIxWzKM7ILMAQab6kJhcdEGkxtZFhwEVayX56T/dO6nT8pnpZ76IwXtfWi7ifa+9sjYCti4AY3PD9PfqylwHn0JLXEtcpQNVpdVgQoZAA238MQJwEIlMD2Ex2N+ywHyc2pWmN2MqZomRJ+Cx1+bY1/R7gazUMk9CEUNBpPNBXU5tQGIoxhIl0tBt0Lmr6ao99dPpfXLE2pKp17hssFAqpVIEruhrpmQ/xocPYHYbLEUlJc1uFsXde+CfJfkwrlKmZJZ+ttBc21zxin3Nl/wsqJF2KbNnOa4pD0T4uxG2Ud688fGJyTZlsi15grBx91IQU8yuKsps2jNDn9XxI1jNgHzEsiPC+OirQvXHqZ0WtiPe++FHuxbd++2lNYbetQIIdcY2j7K9RoGIkXpdn4wkdOXGBnizUWOpi7lIud+mpi7XV4lnBGyLK8TDED3aBMLMRoKRgWLkx3EBD6jxmtQ+vsOLFSx/m7q11SZICc1iECyGqu6FklqJSJEU6f00mnbDfpDQ/hrA5Wz2z962Pch/9PKeqJZy9jpCe855YEe6gK9qyOHEpclmYxGAHXV6Eu3ch09r8juq1LkMeqRWwL4tK71iCC6LOtmnfICvF0uWtOQUu8x1V62tDZo+aan0/+Vj2VN2q55XjFHan4ZiI6qg2FjACVPJRHvMkRSIaZWSqlOer9MtcejYx/bpckrrMIDGKPgo3vJPSJDFVYzsUe3fR44OfjwnlaoJLPlqFmFhSFYPrE5yK4UFcDNhC+bUb8WMTpgBTJjGevQntiaIgs/ByA40OQtVuYlpzGvjSLYfGkVeIxp/2TgmVaJ6+T0lIRbxBFdhwyOUjpZHAnsz+KabTgHpBVqJe9vBVyGvaRn1Qkhaiw1TTAUG+h7xRdveJEyRiGMm22SxppJXC98fRXRnxjrlaP3S9OzkixBgnM9Rnuqr3ekpuJ+LmKHiwBcOF5fRnujRqlM1UvUD5h77/avdKupWUDZH+PoKhKV6woBSDtbvRdr33ccHt5tV0N/gV061PyMz3vhmc03h7xpQfs/K6KGyhKLNZK8CjgK0m1gJyAoovAD2xa+2sz6BsixUbJpM5NfBN4/OluKYhL4QeBmH6c44afaCQkg1XbsBVhhaM7zyYh97DlDKkkbtmLD6Wi4+/4mZYCJtE97ehLUg42oT3ZTIznTlweIuvXRihzcd4SMqMi1V7Fj9Ss70NyWyrQBztZ5uEp2wAUZLJmU9F3jGJ8FawEtCCF1yfvW107lvs/mhlVKS7Lq4aLXdjOX0CDeMUkSAwyyR0zs10brNVDkWCCINeXfxWn/6IYUH0ThMNgB0biPtc/PbLNJb9eeFL+AXtyBKvwVVPlu6Qn4oCh8Soi08DHsSJ0yEthLTB9qgAoirGwLInwjIGC/GwEAala4dZ2cvPePZVMhP7BdxWJ0aF/RUWSaqRtK7KaP/eSZKjeyeKVZ0w0kJvoVDEenPJtU/nUqa5noLPEnzq42O4XBxGWGlw7nBd8aTL6Ky/sGklUVvNxPXOD8GRDRRwP7VxTYhPCHsf5cuXhg43iqrdEdw4+hzRg9JsvYETzl5p8vHr8Cch5ap7H4dKdGDYiV8hfNFJCqS5CC1tnx4u1zqDVRkz20uCzfLF0ZEdOpRZZSJ1Yj96SVFza700t9zwKTHpIrcyheI8PJbuJB8btPG8G9foE0B6UGjImMvUzZxjt2bPykUDXO5ykXTygEv11MimiB/VssRZ88xNn7SrdzJSJrvOQ2WfA6yp+omUOTOpbu23gIFt/BtAJpHNLmpdP7S9y8nxWf5T5/GWf1zgMBpsd6T+XcE0ZZIi6v/6teIW2v8AKE7r0w0e6X8AAAAASUVORK5CYII=" style="width:48px;height:48px;object-fit:contain;" alt="中山附醫">
     <div>
       <div class="header-title">中山醫學大學附設醫院</div>
       <div class="header-subtitle">一般外科 · 內部系統</div>
@@ -794,6 +809,21 @@
         <div class="page-desc">最新科內公告與通知</div>
       </div>
     </div>
+
+    <!-- 行事曆 -->
+    <div class="card" style="margin-bottom:1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:600;color:var(--text);">📅 會議行事曆</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="calPrev()">‹</button>
+          <span id="cal-month-label" style="font-size:13px;font-weight:600;color:var(--text);min-width:90px;text-align:center;"></span>
+          <button class="btn btn-outline btn-sm" onclick="calNext()">›</button>
+        </div>
+      </div>
+      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:12px;"></div>
+      <div id="cal-meeting-list"></div>
+    </div>
+
     <div class="card" style="padding:0; overflow:hidden;" id="announcementList">
       <div class="empty-state">
         <div class="empty-icon">📭</div>
@@ -1694,6 +1724,7 @@ function logoutAdmin() {
   document.getElementById('logoutBtn').classList.remove('show');
   document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('show'));
   showPage('announcements');
+  renderCalendar();
 }
 
 function openNotion() {
@@ -1719,6 +1750,7 @@ function showPage(id) {
 
   if (id === 'announcements') renderAnnouncements();
   if (id === 'checkin') populateCheckinSelects();
+  if (id === 'announcements') renderCalendar();
   if (id === 'record') { populateRecordSelects(); populateLoadRecordSelect(); }
   if (id === 'chair-sign') populateChairRecordSelect();
   if (id === 'admin-records') { renderRecordsList(); renderCheckinRecords(); }
@@ -3029,6 +3061,81 @@ function renderImgHtml(url) {
   }
   return `<div style="margin-top:8px;"><img src="${url}" style="max-width:100%;border-radius:6px;" onerror="this.style.display='none'"></div>`;
 }
+
+// ── 行事曆 ─────────────────────────────────────────
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function renderCalendar() {
+  const today = new Date();
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay = new Date(calYear, calMonth + 1, 0);
+  const startDow = firstDay.getDay();
+
+  document.getElementById('cal-month-label').textContent = `${calYear}年 ${calMonth+1}月`;
+
+  // 找本月有會議的日期
+  const meetingDates = {};
+  store.meetings.forEach(m => {
+    if (!m.date) return;
+    const d = new Date(m.date + 'T00:00:00');
+    if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+      const day = d.getDate();
+      if (!meetingDates[day]) meetingDates[day] = [];
+      meetingDates[day].push(m);
+    }
+  });
+
+  const days = ['日','一','二','三','四','五','六'];
+  let html = days.map(d => `<div class="cal-day-label">${d}</div>`).join('');
+
+  // 前面空格
+  for (let i = 0; i < startDow; i++) html += '<div class="cal-day other-month"></div>';
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+    const hasMeeting = meetingDates[d];
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (hasMeeting) cls += ' has-meeting';
+    html += `<div class="${cls}">${d}${hasMeeting ? '<div class="cal-dot"></div>' : ''}</div>`;
+  }
+
+  document.getElementById('cal-grid').innerHTML = html;
+
+  // 本月會議列表
+  const sorted = store.meetings
+    .filter(m => { if (!m.date) return false; const d = new Date(m.date+'T00:00:00'); return d.getFullYear()===calYear && d.getMonth()===calMonth; })
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  if (!sorted.length) {
+    document.getElementById('cal-meeting-list').innerHTML = `<div style="text-align:center;color:var(--text3);font-size:13px;padding:8px 0;">本月無會議</div>`;
+    return;
+  }
+
+  const typeColors = {'期刊討論會':'background:#eff6ff;color:#1d4ed8', '病例討論會':'background:#fef3c7;color:#92400e'};
+  document.getElementById('cal-meeting-list').innerHTML = sorted.map(m => {
+    const d = new Date(m.date+'T00:00:00');
+    const tc = typeColors[m.type] || 'background:#f3f4f6;color:#374151';
+    return `<div class="cal-meeting-item">
+      <div class="cal-meeting-date">
+        <div class="cal-meeting-date-day">${d.getDate()}</div>
+        <div class="cal-meeting-date-month">${d.getMonth()+1}月</div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:6px;">
+          ${escHtml(m.name)}<span style="font-size:11px;padding:2px 8px;border-radius:12px;${tc}">${escHtml(m.type)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px;">
+          ${m.start?`🕑 ${m.start}${m.end?'–'+m.end:''}`:''} ${m.location?`· ${escHtml(m.location)}`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
 
 function autoLink(text) {
   // 自動把網址變成可點擊連結（支援 https:// http:// www.）
