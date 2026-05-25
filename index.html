@@ -789,6 +789,7 @@
 <!-- NAV -->
 <nav id="mainNav">
   <a onclick="showPage('announcements')" class="active" data-page="announcements">📢 公告事項</a>
+  <a onclick="showPage('calendar')" data-page="calendar">📅 行事曆</a>
   <a onclick="showPage('checkin')" data-page="checkin">✍️ 電子簽到</a>
   <a onclick="showPage('record')" data-page="record">📋 填寫會議紀錄</a>
   <a onclick="showPage('chair-sign')" data-page="chair-sign" class="admin-only">🖊 主持人簽核</a>
@@ -809,11 +810,26 @@
         <div class="page-desc">最新科內公告與通知</div>
       </div>
     </div>
+    <div class="card" style="padding:0; overflow:hidden;" id="announcementList">
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">目前沒有公告</div>
+        <div class="empty-desc">請管理員發布公告</div>
+      </div>
+    </div>
+  </div>
 
-    <!-- 行事曆 -->
+  <!-- ===== 行事曆 ===== -->
+  <div class="page" id="page-calendar">
+    <div class="page-header">
+      <div>
+        <div class="page-title">會議行事曆</div>
+        <div class="page-desc">本月會議日期與時程</div>
+      </div>
+    </div>
     <div class="card" style="margin-bottom:1rem;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:14px;font-weight:600;color:var(--text);">📅 會議行事曆</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);">📅 月曆</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <button class="btn btn-outline btn-sm" onclick="calPrev()">‹</button>
           <span id="cal-month-label" style="font-size:13px;font-weight:600;color:var(--text);min-width:90px;text-align:center;"></span>
@@ -822,14 +838,6 @@
       </div>
       <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:12px;"></div>
       <div id="cal-meeting-list"></div>
-    </div>
-
-    <div class="card" style="padding:0; overflow:hidden;" id="announcementList">
-      <div class="empty-state">
-        <div class="empty-icon">📭</div>
-        <div class="empty-title">目前沒有公告</div>
-        <div class="empty-desc">請管理員發布公告</div>
-      </div>
     </div>
   </div>
 
@@ -1291,6 +1299,12 @@
       </div>
     </div>
     <div class="form-group">
+      <label class="cb-label" style="font-weight:500;">
+        <input type="checkbox" id="ann-pinned">
+        <span>📌 置頂（顯示在所有公告最上方）</span>
+      </label>
+    </div>
+    <div class="form-group">
       <label>圖片網址（選填）</label>
       <input type="text" id="ann-image" placeholder="https://... 貼上圖片連結">
       <div class="text-sm text-muted" style="margin-top:4px;">支援 Imgur、Google Drive（分享連結）等圖片網址</div>
@@ -1724,7 +1738,7 @@ function logoutAdmin() {
   document.getElementById('logoutBtn').classList.remove('show');
   document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('show'));
   showPage('announcements');
-  renderCalendar();
+  renderAnnouncements();
 }
 
 function openNotion() {
@@ -1750,7 +1764,8 @@ function showPage(id) {
 
   if (id === 'announcements') renderAnnouncements();
   if (id === 'checkin') populateCheckinSelects();
-  if (id === 'announcements') renderCalendar();
+  if (id === 'announcements') renderAnnouncements();
+  if (id === 'calendar') renderCalendar();
   if (id === 'record') { populateRecordSelects(); populateLoadRecordSelect(); }
   if (id === 'chair-sign') populateChairRecordSelect();
   if (id === 'admin-records') { renderRecordsList(); renderCheckinRecords(); }
@@ -1771,14 +1786,20 @@ function renderAnnouncements() {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">目前沒有公告</div><div class="empty-desc">請管理員發布公告</div></div>`;
     return;
   }
-  const sorted = [...store.announcements].sort((a,b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...store.announcements].sort((a,b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.date) - new Date(a.date);
+  });
   el.innerHTML = sorted.map(a => {
     const badgeClass = a.level === '緊急' ? 'badge-urgent' : a.level === '重要' ? 'badge-important' : 'badge-normal';
     const barClass = a.level === '緊急' ? 'urgent-bar' : a.level === '重要' ? 'important-bar' : '';
+    const pinnedBadge = a.pinned ? '<span style="font-size:11px;padding:2px 7px;border-radius:12px;background:#fff7ed;color:#c2410c;font-weight:500;">📌 置頂</span>' : '';
     return `<div class="announcement-item ${barClass}">
       <div class="ann-top">
         <div class="ann-title">${escHtml(a.title)}</div>
         <div style="display:flex;gap:6px;align-items:center;">
+          ${pinnedBadge}
           <span class="badge ${badgeClass}">${a.level}</span>
         </div>
       </div>
@@ -1796,10 +1817,12 @@ function renderAdminAnnouncements() {
   }
   el.innerHTML = store.announcements.map((a) => {
     const badgeClass = a.level === '緊急' ? 'badge-urgent' : a.level === '重要' ? 'badge-important' : 'badge-normal';
+    const pinnedBadge = a.pinned ? '<span style="font-size:11px;padding:2px 7px;border-radius:12px;background:#fff7ed;color:#c2410c;">📌</span>' : '';
     return `<div class="announcement-item">
       <div class="ann-top">
         <div class="ann-title">${escHtml(a.title)}</div>
         <div style="display:flex;gap:6px;align-items:center;">
+          ${pinnedBadge}
           <span class="badge ${badgeClass}">${a.level}</span>
           <button class="btn-icon" onclick="editAnn('${a.notionId}')" title="編輯">✏️</button>
           <button class="btn-icon" onclick="deleteAnn('${a.notionId}')" title="刪除">🗑</button>
@@ -1829,7 +1852,8 @@ async function saveAnnouncement() {
     }),
     level: document.getElementById('ann-level').value,
     author: document.getElementById('ann-author').value.trim(),
-    date: new Date().toISOString().slice(0,10)
+    date: new Date().toISOString().slice(0,10),
+    pinned: document.getElementById('ann-pinned').checked
   };
   closeModal('modal-announce');
   if (editId) {
@@ -1857,6 +1881,7 @@ function editAnn(notionId) {
   document.getElementById('ann-image').value = img;
   document.getElementById('ann-attachment').value = att;
   document.getElementById('ann-attachment-name').value = attName;
+  document.getElementById('ann-pinned').checked = a.pinned || false;
   document.getElementById('ann-edit-id').value = notionId;
   openModal('modal-announce');
 }
