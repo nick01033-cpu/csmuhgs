@@ -2189,7 +2189,7 @@ async function submitCheckin() {
     id: Date.now(),
     meetingId, meetingName: meeting.name,
     name: personName, code: personCodeVal,
-    dept: personDept, title: personTitle,
+    dept: personDept, jobTitle: personTitle,
     signature: sigCompressed,
     time: new Date().toLocaleString('zh-TW')
   };
@@ -2862,7 +2862,7 @@ async function exportDocx(recordId) {
           if (tcCount < 5) return tr;
           if (ciIdx >= meetingCheckins.length) return tr;
           const ci = meetingCheckins[ciIdx++];
-          const vals = [String(ciIdx), ci.dept||'', ci.title||'', ci.code||'', ci.name||''];
+          const vals = [String(ciIdx), ci.dept||'', ci.jobTitle||ci.title||'', ci.code||'', ci.name||''];
           let vi = 0;
           return tr.replace(/<w:r><w:rPr><w:rFonts w:eastAsia="\u6a19\u6977\u9ad4"\/><w:color w:val="000000"\/><\/w:rPr><\/w:r>/g, m => {
             if (vi >= vals.length) return m;
