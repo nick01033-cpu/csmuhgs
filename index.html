@@ -3045,14 +3045,16 @@ async function exportDocx(recordId) {
       const qas = c.qas || [];
       if (qas.length) {
         const stripNL2 = s => String(s||'').replace(/[\r\n]+/g, ' ').trim();
-        const qaText = qas.map((qa, idx) => {
-          const parts = [];
-          if (qas.length > 1) parts.push(`【Q${idx+1}】`);
-          parts.push('Dr. ' + stripNL2(qa.asker) + '　問：' + stripNL2(qa.question));
-          parts.push('Dr. ' + stripNL2(qa.answerer) + '　答：' + stripNL2(qa.answer));
-          return parts.join('  ');
-        }).join('  ');
-        xml = xml.replace('{{討論}}', xe(qaText));
+        const pPrJ = `<w:pPr><w:pStyle w:val="Normal"/><w:snapToGrid w:val="false"/><w:jc w:val="both"/><w:rPr><w:rFonts w:eastAsia="標楷體"/></w:rPr></w:pPr>`;
+        const makeParaJ = (text) =>
+          `<w:p>${pPrJ}<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/></w:rPr><w:t xml:space="preserve">${xe(text)}</w:t></w:r></w:p>`;
+        const mergedParasJ = qas.map((qa, idx) =>
+          makeParaJ(`${qas.length > 1 ? `【Q${idx+1}】` : ''}Dr. ${stripNL2(qa.asker)}　問：${stripNL2(qa.question)}`) +
+          makeParaJ(`　　　　Dr. ${stripNL2(qa.answerer)}　答：${stripNL2(qa.answer)}`)
+        ).join('');
+        // 替換整個含 {{討論}} 的 <w:p> 段落
+        const DISC_P = `<w:p><w:pPr><w:pStyle w:val="Normal"/><w:snapToGrid w:val="false"/><w:jc w:val="both"/><w:rPr><w:rFonts w:eastAsia="標楷體"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/></w:rPr><w:t xml:space="preserve">{{討論}}</w:t></w:r></w:p>`;
+        xml = xml.replace(DISC_P, mergedParasJ);
       } else {
         xml = xml.replace('{{討論}}', '');
       }
