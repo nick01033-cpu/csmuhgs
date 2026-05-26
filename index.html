@@ -2997,20 +2997,24 @@ async function exportDocx(recordId) {
           `【Q${idx+1}】Dr. ${stripNL(qa.asker)}　問：${stripNL(qa.question)}  Dr. ${stripNL(qa.answerer)}　答：${stripNL(qa.answer)}`
         ).join('  ');
 
-        // 第一個「問：」填入合併文字，並清除問/答標籤讓格子只顯示合併內容
-        const QA_Q_PATTERN = `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t>`;
-        const QA_A_PATTERN = `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t>`;
-        const QA_Q_MERGED = `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${xe(mergedText)}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t>`;
-        const QA_Q_EMPTY  = `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve"></w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t>`;
-        const QA_A_EMPTY  = `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve"></w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t>`;
+        // >2組：找出模板中整個 Q&A 儲存格區段（從第一個底線 run 到最後一個底線 run），
+        // 只在該範圍內：第一個底線填合併文字，其餘底線清空，所有「問：」「答：」文字清空
+        //
+        // 底線 run 特徵：<w:u w:val="single"/> + <w:t xml:space="preserve">  [空格]  </w:t>
+        const UL_RUN_RE = /(<w:u w:val="single"\/>(?:<\/w:rPr>|[\s\S]{0,50}?<\/w:rPr>)<w:t xml:space="preserve">)([ ]+)(<\/w:t>)/g;
+        let ulIdx = 0;
+        qaXml = qaXml.replace(UL_RUN_RE, (m, pre, spaces, close) => {
+          if (spaces.length < 5) return m; // 不是 QA 底線（太短）
+          ulIdx++;
+          if (ulIdx === 1) return pre + xe(mergedText) + close; // 第一個填合併文字
+          return pre + close; // 其餘清空
+        });
 
-        // 第一個「問：」填入合併文字
-        qaXml = qaXml.replace(QA_Q_PATTERN, QA_Q_MERGED);
-        // 清除其餘所有未填的 Dr._____ 空格（最多剩 3 個：Q1答、Q2問、Q2答）
-        for (let i = 0; i < 3; i++) {
-          qaXml = qaXml.replace(QA_Q_PATTERN, QA_Q_EMPTY);
-          qaXml = qaXml.replace(QA_A_PATTERN, QA_A_EMPTY);
-        }
+        // 只清除 Q&A 儲存格內的「問：」「答：」文字節點
+        // 特徵：緊接在 Dr. 相關 run 後面的獨立 <w:t>問：</w:t> 或 <w:t>答：</w:t>
+        // 只替換 QA_BLANK 原本模板出現的固定字串（不動其他地方）
+        const QA_TRAIL_RE = /(<w:rFonts w:eastAsia="標楷體"\/><w:sz w:val="20"\/><w:szCs w:val="20"\/>(?:<w:u[^/]*\/>)?<\/w:rPr><w:t>)[問答]：(<\/w:t>)/g;
+        qaXml = qaXml.replace(QA_TRAIL_RE, '$1$2');
       }
       xml = qaXml;
     } else {
