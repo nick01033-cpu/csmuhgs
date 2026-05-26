@@ -2998,20 +2998,29 @@ async function exportDocx(recordId) {
         ).join('  ');
 
         // >2組：模板有兩組固定結構，每組 = Dr.[底線] 問：\nDr.[底線] 答：
-        // 策略：把第一個「Dr.[底線]問：」段落換成合併文字，其餘三個段落清空
+        // 把所有問答合併，每問/每答獨立一行（用 <w:br/> 換行）
         const QA_P_Q = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">         </w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t></w:r>`;
         const QA_P_A = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">         </w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t></w:r>`;
-        const QA_P_MERGED = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${xe(mergedText)}</w:t></w:r>`;
-        const QA_P_EMPTY  = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t></w:t></w:r>`;
+        const QA_P_EMPTY = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t></w:t></w:r>`;
 
-        // 第一個「問：」段落 → 合併文字
-        qaXml = qaXml.replace(QA_P_Q, QA_P_MERGED);
-        // 第一個「答：」段落 → 清空
+        // 建立帶換行的合併內容：每問一行、每答一行
+        const brRun = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:br/></w:r>`;
+        const mergedRuns = qas.map((qa, idx) => {
+          const qRun = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">【Q${idx+1}】Dr. ${xe(stripNL(qa.asker))}　問：${xe(stripNL(qa.question))}</w:t></w:r>`;
+          const aRun = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">　　　　Dr. ${xe(stripNL(qa.answerer))}　答：${xe(stripNL(qa.answer))}</w:t></w:r>`;
+          return qRun + brRun + aRun;
+        }).join(brRun);
+
+        // 第一個「問：」段落 → 換成合併內容（含換行）
+        qaXml = qaXml.replace(QA_P_Q, mergedRuns);
+        // 清空其餘三個段落
         qaXml = qaXml.replace(QA_P_A, QA_P_EMPTY);
-        // 第二個「問：」段落 → 清空
         qaXml = qaXml.replace(QA_P_Q, QA_P_EMPTY);
-        // 第二個「答：」段落 → 清空
         qaXml = qaXml.replace(QA_P_A, QA_P_EMPTY);
+
+        // 清除第二列的兩個空段落（<w:p> 只含空 run 的）
+        // 找到 QA_P_EMPTY 所在的 <w:p>，把整個 <w:p>...</w:p> 移除（只移除空的）
+        qaXml = qaXml.replace(/<w:p><w:pPr><w:pStyle w:val="Normal"\/><w:snapToGrid w:val="false"\/><w:rPr><\/w:rPr><\/w:pPr><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"\/><w:sz w:val="20"\/><w:szCs w:val="20"\/><\/w:rPr><w:t><\/w:t><\/w:r><\/w:p>/g, '');
       }
       xml = qaXml;
     } else {
