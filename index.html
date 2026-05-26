@@ -3170,6 +3170,20 @@ async function exportDocx(recordId) {
       } catch(e) { console.warn('出席人員簽名失敗:', e.message); }
     });
 
+
+    // ── 附件 ───────────────────────────────────────
+    if (c.attachment) {
+      const attDisplay = xe(c.attachmentName || c.attachment);
+      const attUrl = xe(c.attachment);
+      // 找「附件一」後面的空白儲存格，填入附件名稱與連結
+      const ATT_EMPTY_TC = `<w:tc><w:tcPr><w:tcW w:w="4100" w:type="dxa"/><w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:start w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:end w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders></w:tcPr><w:p><w:pPr><w:pStyle w:val="Normal"/><w:snapToGrid w:val="false"/><w:rPr><w:rFonts w:eastAsia="標楷體"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/></w:rPr></w:r></w:p></w:tc>`;
+      const ATT_FILLED_TC = `<w:tc><w:tcPr><w:tcW w:w="4100" w:type="dxa"/><w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:start w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:end w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders></w:tcPr><w:p><w:pPr><w:pStyle w:val="Normal"/><w:snapToGrid w:val="false"/><w:rPr><w:rFonts w:eastAsia="標楷體"/></w:rPr></w:pPr><w:hyperlink r:id="rIdAtt1" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${attDisplay}</w:t></w:r></w:hyperlink></w:p></w:tc>`;
+      xml = xml.replace(ATT_EMPTY_TC, ATT_FILLED_TC);
+      // 在 rels 加入超連結關係
+      relsXml = relsXml.replace('</Relationships>',
+        `<Relationship Id="rIdAtt1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${attUrl}" TargetMode="External"/></Relationships>`);
+    }
+
     // 清除所有未替換的佔位符（避免破壞 XML 結構）
     xml = xml.replace(/\{\{[^}]+\}\}/g, '');
 
