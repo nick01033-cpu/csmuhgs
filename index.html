@@ -2975,19 +2975,42 @@ async function exportDocx(recordId) {
       const qas = c.qas || [];
       const QA_BLANK = '         '; // 9個空格（底線）
       let qaXml = xml;
-      let qaFilled = 0;
-      qas.forEach(qa => {
-        // 替換第一個未填的問醫師名字
+
+      if (qas.length <= 2) {
+        // ≤2 組：維持原本逐一填入模板空格的方式
+        qas.forEach(qa => {
+          qaXml = qaXml.replace(
+            `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t>`,
+            `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(qa.asker||'')}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：${xe(qa.question||'')}</w:t>`
+          );
+          qaXml = qaXml.replace(
+            `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t>`,
+            `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(qa.answerer||'')}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：${xe(qa.answer||'')}</w:t>`
+          );
+        });
+      } else {
+        // >2 組：把所有問答合併成一段文字，填入第一個「問：」欄位，其餘空格清空
+        const mergedText = qas.map((qa, idx) =>
+          `【Q${idx+1}】Dr. ${qa.asker||''}　問：${qa.question||''}  Dr. ${qa.answerer||''}　答：${qa.answer||''}`
+        ).join('  ');
+
+        // 第一個「問：」填入合併文字
         qaXml = qaXml.replace(
           `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t>`,
-          `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(qa.asker||'')}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：${xe(qa.question||'')}</w:t>`
+          `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${xe(mergedText)}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>`
         );
-        // 替換對應的答醫師名字
-        qaXml = qaXml.replace(
-          `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t>`,
-          `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(qa.answerer||'')}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：${xe(qa.answer||'')}</w:t>`
-        );
-      });
+        // 清除其餘所有未填的 Dr._____ 空格（最多剩 3 個：Q1答、Q2問、Q2答）
+        for (let i = 0; i < 3; i++) {
+          qaXml = qaXml.replace(
+            `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t>`,
+            `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve"></w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t>`
+          );
+          qaXml = qaXml.replace(
+            `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${QA_BLANK}</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t>`,
+            `Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve"></w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t>`
+          );
+        }
+      }
       xml = qaXml;
     } else {
       const j = c.journal || {};
@@ -3007,8 +3030,14 @@ async function exportDocx(recordId) {
       xml = xml.replace('{{迄分}}', xe((c.end||'').split(':')[1]||'00'));
       const qas = c.qas || [];
       if (qas.length) {
-        const qa0 = qas[0];
-        xml = xml.replace('{{討論}}', xe('Dr. ' + (qa0.asker||'') + '　問：' + (qa0.question||'') + '  Dr. ' + (qa0.answerer||'') + '　答：' + (qa0.answer||'')));
+        const qaText = qas.map((qa, idx) => {
+          const parts = [];
+          if (qas.length > 1) parts.push(`【Q${idx+1}】`);
+          parts.push('Dr. ' + (qa.asker||'') + '　問：' + (qa.question||''));
+          parts.push('Dr. ' + (qa.answerer||'') + '　答：' + (qa.answer||''));
+          return parts.join('  ');
+        }).join('  ');
+        xml = xml.replace('{{討論}}', xe(qaText));
       } else {
         xml = xml.replace('{{討論}}', '');
       }
