@@ -3013,7 +3013,10 @@ async function exportDocx(recordId) {
 
         // 用精確字串替換整個第一個 <w:p> 段落
         const QA_FIRST_P = `<w:p><w:pPr><w:pStyle w:val="Normal"/><w:snapToGrid w:val="false"/><w:rPr></w:rPr></w:pPr>${QA_P_Q}</w:p>`;
+        console.log('[QA debug] 找到QA_FIRST_P:', qaXml.includes(QA_FIRST_P));
+        console.log('[QA debug] qas.length:', qas.length);
         qaXml = qaXml.replace(QA_FIRST_P, mergedParas);
+        console.log('[QA debug] 替換後含【Q1】:', qaXml.includes('【Q1】'));
         // 清空其餘三個段落的內容
         qaXml = qaXml.replace(QA_P_A, QA_P_EMPTY);
         qaXml = qaXml.replace(QA_P_Q, QA_P_EMPTY);
