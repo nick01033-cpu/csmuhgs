@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>一般外科 教學事務系統 — CSMUHGS</title>
+<title>一般外科 內部系統 — CSMUHGS</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+TC:wght@400;600&display=swap');
 
@@ -863,6 +863,24 @@
         <select id="checkin-name" onchange="loadPersonInfo()">
           <option value="">— 請選擇 —</option>
         </select>
+        <div id="manual-input-area" style="display:none;margin-top:8px;">
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <input type="text" id="manual-name" placeholder="姓名" oninput="updateManualInfo()">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <input type="text" id="manual-dept" placeholder="科別（選填）" oninput="updateManualInfo()">
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:6px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <input type="text" id="manual-title" placeholder="職稱（選填）" oninput="updateManualInfo()">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <input type="text" id="manual-code" placeholder="員工代碼（選填）" oninput="updateManualInfo()">
+            </div>
+          </div>
+        </div>
         <div class="person-info-box" id="personInfoBox">
           <div class="person-info-row">
             <span><span class="person-info-label">科別：</span><span id="pi-dept"></span></span>
@@ -2009,7 +2027,8 @@ function populateCheckinSelects() {
       if (codes.length > 0) persons = store.persons.filter(p => codes.includes(p.code));
     }
     ns.innerHTML = '<option value="">— 請選擇姓名 —</option>' +
-      persons.map(p => `<option value="${p.code}">${escHtml(p.name)}</option>`).join('');
+      persons.map(p => `<option value="${p.code}">${escHtml(p.name)}</option>`).join('') +
+      '<option value="__manual__">✏️ 不在名單，手動輸入</option>';
   };
   ms.onchange = () => { updateNameList(); loadPersonInfo(); };
   updateNameList();
@@ -2027,6 +2046,14 @@ function populateRecordSelects() {
 function loadPersonInfo() {
   const code = document.getElementById('checkin-name').value;
   const box = document.getElementById('personInfoBox');
+  const manualArea = document.getElementById('manual-input-area');
+
+  if (code === '__manual__') {
+    manualArea.style.display = 'block';
+    box.classList.remove('show');
+    return;
+  }
+  manualArea.style.display = 'none';
   if (!code) { box.classList.remove('show'); return; }
   const p = store.persons.find(x => x.code === code);
   if (!p) { box.classList.remove('show'); return; }
@@ -2034,6 +2061,22 @@ function loadPersonInfo() {
   document.getElementById('pi-title').textContent = p.title;
   document.getElementById('pi-code').textContent = p.code;
   box.classList.add('show');
+}
+
+function updateManualInfo() {
+  const name = document.getElementById('manual-name').value.trim();
+  const dept = document.getElementById('manual-dept').value.trim();
+  const title = document.getElementById('manual-title').value.trim();
+  const code = document.getElementById('manual-code').value.trim();
+  const box = document.getElementById('personInfoBox');
+  if (name) {
+    document.getElementById('pi-dept').textContent = dept || '—';
+    document.getElementById('pi-title').textContent = title || '—';
+    document.getElementById('pi-code').textContent = code || '—';
+    box.classList.add('show');
+  } else {
+    box.classList.remove('show');
+  }
 }
 
 /* ============================================================
@@ -2107,38 +2150,63 @@ async function submitCheckin() {
   const meetingId = document.getElementById('checkin-meeting').value;
   const personCode = document.getElementById('checkin-name').value;
   const alertEl = document.getElementById('checkin-alert');
+  const isManual = personCode === '__manual__';
 
   if (!meetingId) { showAlert(alertEl, 'error', '請選擇會議場次'); return; }
   if (!personCode) { showAlert(alertEl, 'error', '請選擇姓名'); return; }
+
+  let personName, personDept, personTitle, personCodeVal;
+  if (isManual) {
+    personName = document.getElementById('manual-name').value.trim();
+    personDept = document.getElementById('manual-dept').value.trim();
+    personTitle = document.getElementById('manual-title').value.trim();
+    personCodeVal = document.getElementById('manual-code').value.trim();
+    if (!personName) { showAlert(alertEl, 'error', '請輸入姓名'); return; }
+  } else {
+    const person = store.persons.find(p => p.code === personCode);
+    if (!person) { showAlert(alertEl, 'error', '找不到人員資料'); return; }
+    personName = person.name;
+    personDept = person.dept;
+    personTitle = person.title;
+    personCodeVal = person.code;
+  }
+
   if (isCanvasEmpty()) { showAlert(alertEl, 'error', '請完成簽名'); return; }
 
-  const person = store.persons.find(p => p.code === personCode);
   const meeting = store.meetings.find(m => (m.notionId||m.id) == meetingId || m.id == meetingId);
   const canvas = document.getElementById('signCanvas');
-  const sigData = canvas.toDataURL('image/png');
 
-  // Check duplicate
-  const dup = store.checkins.find(c => (c.meetingId == meetingId || c.meetingId == (store.meetings.find(m=>(m.notionId||m.id)==meetingId)||{}).id) && c.code === personCode);
+  // 防止重複簽到（依姓名或代碼）
+  const dup = store.checkins.find(c => {
+    const sameMeeting = c.meetingId == meetingId || c.meetingId == (meeting||{}).id;
+    return sameMeeting && (isManual ? c.name === personName : c.code === personCodeVal);
+  });
   if (dup) { showAlert(alertEl, 'error', '您已完成此會議的簽到'); return; }
 
-  // 壓縮簽名：縮小 canvas 再轉 base64，控制在 Notion 2000 字元內
   const sigCompressed = compressSignature(canvas);
 
   const checkinObj = {
     id: Date.now(),
     meetingId, meetingName: meeting.name,
-    name: person.name, code: person.code,
-    dept: person.dept, title: person.title,
+    name: personName, code: personCodeVal,
+    dept: personDept, title: personTitle,
     signature: sigCompressed,
     time: new Date().toLocaleString('zh-TW')
   };
+
   clearSign();
   document.getElementById('checkin-name').value = '';
   document.getElementById('checkin-meeting').value = '';
   document.getElementById('personInfoBox').classList.remove('show');
+  document.getElementById('manual-input-area').style.display = 'none';
+  document.getElementById('manual-name').value = '';
+  document.getElementById('manual-dept').value = '';
+  document.getElementById('manual-title').value = '';
+  document.getElementById('manual-code').value = '';
+
   try {
     await createCheckin(checkinObj);
-    showAlert(alertEl, 'success', `✓ ${person.name} 簽到成功！（${meeting.name}）`);
+    showAlert(alertEl, 'success', `✓ ${personName} 簽到成功！（${meeting.name}）`);
   } catch(e) {
     showAlert(alertEl, 'error', '簽到失敗：' + e.message);
   }
