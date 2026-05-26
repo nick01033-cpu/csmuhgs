@@ -2997,24 +2997,41 @@ async function exportDocx(recordId) {
           `【Q${idx+1}】Dr. ${stripNL(qa.asker)}　問：${stripNL(qa.question)}  Dr. ${stripNL(qa.answerer)}　答：${stripNL(qa.answer)}`
         ).join('  ');
 
-        // >2組：找出模板中整個 Q&A 儲存格區段（從第一個底線 run 到最後一個底線 run），
-        // 只在該範圍內：第一個底線填合併文字，其餘底線清空，所有「問：」「答：」文字清空
-        //
-        // 底線 run 特徵：<w:u w:val="single"/> + <w:t xml:space="preserve">  [空格]  </w:t>
-        const UL_RUN_RE = /(<w:u w:val="single"\/>(?:<\/w:rPr>|[\s\S]{0,50}?<\/w:rPr>)<w:t xml:space="preserve">)([ ]+)(<\/w:t>)/g;
-        let ulIdx = 0;
-        qaXml = qaXml.replace(UL_RUN_RE, (m, pre, spaces, close) => {
-          if (spaces.length < 5) return m; // 不是 QA 底線（太短）
-          ulIdx++;
-          if (ulIdx === 1) return pre + xe(mergedText) + close; // 第一個填合併文字
-          return pre + close; // 其餘清空
-        });
+        // >2組：找出「討論」區段之後的底線 run，第一個填合併文字，其餘清空
+        // 先定位 Q&A 區段的起始位置（找「討論」或「Q&A」關鍵字）
+        const qaMarkers = ['討論(Q&A)', '討論（Q&A）', 'Q&A', '討論'];
+        let qaSectionStart = -1;
+        for (const marker of qaMarkers) {
+          const idx = qaXml.indexOf(marker);
+          if (idx !== -1) { qaSectionStart = idx; break; }
+        }
 
-        // 只清除 Q&A 儲存格內的「問：」「答：」文字節點
-        // 特徵：緊接在 Dr. 相關 run 後面的獨立 <w:t>問：</w:t> 或 <w:t>答：</w:t>
-        // 只替換 QA_BLANK 原本模板出現的固定字串（不動其他地方）
+        if (qaSectionStart === -1) {
+          // 找不到標記時的備援：找最後一個 QA_BLANK 底線所在段落
+          qaSectionStart = qaXml.lastIndexOf(QA_BLANK) - 2000;
+          if (qaSectionStart < 0) qaSectionStart = 0;
+        }
+
+        const beforeQA = qaXml.slice(0, qaSectionStart);
+        let afterQA = qaXml.slice(qaSectionStart);
+
+        // 在 Q&A 區段內：第一個底線填合併文字，其餘清空
+        const UL_RUN_RE = /(<w:u w:val="single"\/>(?:<\/w:rPr>|[\s\S]{0,50}?<\/w:rPr>)<w:t xml:space="preserve">)([ ]{5,})(<\/w:t>)/;
+        let ulIdx = 0;
+        afterQA = afterQA.replace(
+          /(<w:u w:val="single"\/>(?:<\/w:rPr>|[\s\S]{0,50}?<\/w:rPr>)<w:t xml:space="preserve">)([ ]{5,})(<\/w:t>)/g,
+          (m, pre, spaces, close) => {
+            ulIdx++;
+            if (ulIdx === 1) return pre + xe(mergedText) + close;
+            return pre + close;
+          }
+        );
+
+        // 清除 Q&A 區段內殘留的「問：」「答：」文字節點（精確特徵比對）
         const QA_TRAIL_RE = /(<w:rFonts w:eastAsia="標楷體"\/><w:sz w:val="20"\/><w:szCs w:val="20"\/>(?:<w:u[^/]*\/>)?<\/w:rPr><w:t>)[問答]：(<\/w:t>)/g;
-        qaXml = qaXml.replace(QA_TRAIL_RE, '$1$2');
+        afterQA = afterQA.replace(QA_TRAIL_RE, '$1$2');
+
+        qaXml = beforeQA + afterQA;
       }
       xml = qaXml;
     } else {
