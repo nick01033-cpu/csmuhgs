@@ -2997,41 +2997,21 @@ async function exportDocx(recordId) {
           `【Q${idx+1}】Dr. ${stripNL(qa.asker)}　問：${stripNL(qa.question)}  Dr. ${stripNL(qa.answerer)}　答：${stripNL(qa.answer)}`
         ).join('  ');
 
-        // >2組：找出「討論」區段之後的底線 run，第一個填合併文字，其餘清空
-        // 先定位 Q&A 區段的起始位置（找「討論」或「Q&A」關鍵字）
-        const qaMarkers = ['討論(Q&A)', '討論（Q&A）', 'Q&A', '討論'];
-        let qaSectionStart = -1;
-        for (const marker of qaMarkers) {
-          const idx = qaXml.indexOf(marker);
-          if (idx !== -1) { qaSectionStart = idx; break; }
-        }
+        // >2組：模板有兩組固定結構，每組 = Dr.[底線] 問：\nDr.[底線] 答：
+        // 策略：把第一個「Dr.[底線]問：」段落換成合併文字，其餘三個段落清空
+        const QA_P_Q = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">         </w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>問：</w:t></w:r>`;
+        const QA_P_A = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>Dr.</w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">         </w:t></w:r><w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>答：</w:t></w:r>`;
+        const QA_P_MERGED = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${xe(mergedText)}</w:t></w:r>`;
+        const QA_P_EMPTY  = `<w:r><w:rPr><w:rFonts w:eastAsia="標楷體"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t></w:t></w:r>`;
 
-        if (qaSectionStart === -1) {
-          // 找不到標記時的備援：找最後一個 QA_BLANK 底線所在段落
-          qaSectionStart = qaXml.lastIndexOf(QA_BLANK) - 2000;
-          if (qaSectionStart < 0) qaSectionStart = 0;
-        }
-
-        const beforeQA = qaXml.slice(0, qaSectionStart);
-        let afterQA = qaXml.slice(qaSectionStart);
-
-        // 在 Q&A 區段內：第一個底線填合併文字，其餘清空
-        const UL_RUN_RE = /(<w:u w:val="single"\/>(?:<\/w:rPr>|[\s\S]{0,50}?<\/w:rPr>)<w:t xml:space="preserve">)([ ]{5,})(<\/w:t>)/;
-        let ulIdx = 0;
-        afterQA = afterQA.replace(
-          /(<w:u w:val="single"\/>(?:<\/w:rPr>|[\s\S]{0,50}?<\/w:rPr>)<w:t xml:space="preserve">)([ ]{5,})(<\/w:t>)/g,
-          (m, pre, spaces, close) => {
-            ulIdx++;
-            if (ulIdx === 1) return pre + xe(mergedText) + close;
-            return pre + close;
-          }
-        );
-
-        // 清除 Q&A 區段內殘留的「問：」「答：」文字節點（精確特徵比對）
-        const QA_TRAIL_RE = /(<w:rFonts w:eastAsia="標楷體"\/><w:sz w:val="20"\/><w:szCs w:val="20"\/>(?:<w:u[^/]*\/>)?<\/w:rPr><w:t>)[問答]：(<\/w:t>)/g;
-        afterQA = afterQA.replace(QA_TRAIL_RE, '$1$2');
-
-        qaXml = beforeQA + afterQA;
+        // 第一個「問：」段落 → 合併文字
+        qaXml = qaXml.replace(QA_P_Q, QA_P_MERGED);
+        // 第一個「答：」段落 → 清空
+        qaXml = qaXml.replace(QA_P_A, QA_P_EMPTY);
+        // 第二個「問：」段落 → 清空
+        qaXml = qaXml.replace(QA_P_Q, QA_P_EMPTY);
+        // 第二個「答：」段落 → 清空
+        qaXml = qaXml.replace(QA_P_A, QA_P_EMPTY);
       }
       xml = qaXml;
     } else {
