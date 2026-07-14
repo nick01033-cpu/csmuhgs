@@ -2884,20 +2884,6 @@ function toggleCb(xml, labelShort, checked) {
   return result;
 }
 
-// 依 dataURL 判斷簽名圖的真實格式（compressSignature 產出的是 JPEG）
-function sigExtAndMime(dataUrl) {
-  const m = /^data:(image\/(png|jpe?g));base64,/i.exec(dataUrl || '');
-  if (!m) return null;
-  const mime = /jpe?g/i.test(m[2]) ? 'image/jpeg' : 'image/png';
-  return { mime, ext: mime === 'image/jpeg' ? 'jpeg' : 'png' };
-}
-
-// 確保 [Content_Types].xml 有對應副檔名的 Default，否則 Word 解不出圖 → 簽名處空白
-function ensureCtDefault(ctXml, ext, mime) {
-  if (new RegExp('Extension="' + ext + '"', 'i').test(ctXml)) return ctXml;
-  return ctXml.replace('</Types>', `<Default Extension="${ext}" ContentType="${mime}"/></Types>`);
-}
-
 async function exportDocx(recordId) {
   const r = store.records.find(r => (r.notionId || r.id) == recordId);
   if (!r || !r.chairSignature) { alert('請先完成主持人簽核才能匯出'); return; }
@@ -2915,7 +2901,6 @@ async function exportDocx(recordId) {
     const zip = new PizZip(b64ToArr(isCase ? TMPL_CASE_B64 : TMPL_JOURNAL_B64));
     let xml = zip.file('word/document.xml').asText();
     let relsXml = zip.file('word/_rels/document.xml.rels').asText();
-    let ctXml = zip.file('[Content_Types].xml').asText();
 
     // ── 日期轉民國 ─────────────────────────────────
     let dateStr = '';
@@ -3120,20 +3105,16 @@ async function exportDocx(recordId) {
     if (r.chairSignature && r.chairSignature.startsWith('data:image/')) {
       try {
         const sigRId = 'rIdChairSig1';
-        const sigInfo = sigExtAndMime(r.chairSignature);
-        if (!sigInfo) throw new Error('簽名圖格式無法辨識');
         const sigB64 = r.chairSignature.split(',')[1];
+        atob(sigB64); // 驗證 base64 完整性
+        // 強制用 .png（.jpg 造成 Word 無法直接開啟）
         const chairSigBinary = atob(sigB64);
-        // 依實際格式決定副檔名，並補上 [Content_Types].xml 的 Default
-        const chairFname = `chairsig.${sigInfo.ext}`;
-        ctXml = ensureCtDefault(ctXml, sigInfo.ext, sigInfo.mime);
-        zip.file(`word/media/${chairFname}`, chairSigBinary, {binary: true});
+        zip.file('word/media/chairsig.png', chairSigBinary, {binary: true, optimizedBinaryString: true});
         relsXml = relsXml.replace('</Relationships>',
-          `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${chairFname}"/></Relationships>`);
+          `<Relationship Id="${sigRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chairsig.png"/></Relationships>`);
         const imgXml = `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1270000" cy="396240"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="99" name="chairsig"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="99" name="chairsig"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${sigRId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="396240"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
         // 找「主持人簽章：」所在段落，在最後一個 </w:r> 後、</w:p> 前插入
-        const chairSigIdx = xml.indexOf('主持人簽章');
-        if (chairSigIdx < 0) console.warn('找不到「主持人簽章」錨點，簽名圖未插入');
+        const chairSigIdx = xml.indexOf('<w:t>主持人簽章：</w:t>');
         if (chairSigIdx >= 0) {
           const pEnd = xml.indexOf('</w:p>', chairSigIdx);
           if (pEnd >= 0) {
@@ -3153,14 +3134,13 @@ async function exportDocx(recordId) {
     meetingCheckins.forEach((ci, i) => {
       if (!ci.signature || !ci.signature.startsWith('data:image/')) return;
       try {
-        const aInfo = sigExtAndMime(ci.signature);
-        if (!aInfo) throw new Error('簽名圖格式無法辨識');
+        const sigB64 = ci.signature.split(',')[1];
+        atob(sigB64); // 驗證完整性
         const rId = `rIdSig${i}`;
-        // 依實際格式決定副檔名，並補上 [Content_Types].xml 的 Default
-        const fname = `attendsig${i}.${aInfo.ext}`;
+        // 強制用 .png（.jpg 造成 Word 無法直接開啟）
+        const fname = `attendsig${i}.png`;
       const attendSigBinary = atob(ci.signature.split(',')[1]);
-      ctXml = ensureCtDefault(ctXml, aInfo.ext, aInfo.mime);
-      zip.file(`word/media/${fname}`, attendSigBinary, {binary: true});
+      zip.file(`word/media/${fname}`, attendSigBinary, {binary: true, optimizedBinaryString: true});
       relsXml = relsXml.replace('</Relationships>',
         `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/></Relationships>`);
       // 找出席人員表格第 i+2 列的簽到欄（最後一個 tc）插入簽名圖
@@ -3227,7 +3207,6 @@ async function exportDocx(recordId) {
 
     zip.file('word/document.xml', xml);
     zip.file('word/_rels/document.xml.rels', relsXml);
-    zip.file('[Content_Types].xml', ctXml);
 
     const buf = zip.generate({ type: 'arraybuffer' });
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
