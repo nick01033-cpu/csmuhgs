@@ -3523,5 +3523,132 @@ document.addEventListener('DOMContentLoaded', async () => {
   populateRecordSelects();
 });
 </script>
+<script>
+/* ============================================================
+   簽名修補程式（覆寫原有函式，不用改上面任何一行）
+   問題：Notion rich_text 單一欄位上限 2000 字元，
+        原本的簽名 base64 超過就被截斷 → atob 爆掉 → 破圖
+============================================================ */
+
+// 檢查 data URL 是否完整（沒被截斷）
+function isValidSig(s) {
+  if (!s || typeof s !== 'string' || !s.startsWith('data:image/')) return false;
+  if (s.length > 2000) return false;
+  const b64 = s.split(',')[1] || '';
+  if (!b64 || b64.length % 4 !== 0) return false;
+  if (/[^A-Za-z0-9+/=]/.test(b64)) return false;
+  try { atob(b64); return true; } catch (e) { return false; }
+}
+
+// 覆寫：保證壓到 1900 字元以內，絕不會被 Notion 截斷
+window.compressSignature = function (sourceCanvas) {
+  const sizes = [[200, 80], [170, 68], [140, 56], [110, 44], [90, 36]];
+  let last = '';
+  for (const [w, h] of sizes) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(sourceCanvas, 0, 0, w, h);
+
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = ((d[i] + d[i + 1] + d[i + 2]) / 3) < 230 ? 0 : 255;
+      d[i] = d[i + 1] = d[i + 2] = v;
+      d[i + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    for (let q = 0.7; q >= 0.05; q -= 0.05) {
+      const url = c.toDataURL('image/jpeg', q);
+      last = url;
+      if (url.length <= 1900 && isValidSig(url)) return url;
+    }
+  }
+  return last; // 極端情況的保底
+};
+
+// 覆寫：查看簽名時擋掉壞資料
+window.viewSign = function (sig, name) {
+  if (!isValidSig(sig)) {
+    alert(`「${name}」的簽名已損毀（舊資料被 Notion 截斷），請該人員重新簽到。`);
+    return;
+  }
+  document.getElementById('signViewImg').src = sig;
+  document.getElementById('signViewName').textContent = name;
+  openModal('modal-sign-view');
+};
+
+window.viewSignByIdx = function (i) {
+  const c = store.checkins[i];
+  if (c) viewSign(c.signature, c.name);
+};
+
+// 覆寫：簽到記錄表格，壞掉的直接標示出來
+window.renderCheckinRecords = function () {
+  const el = document.getElementById('checkinRecordsList');
+  if (!store.checkins.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-title">尚無簽到記錄</div></div>`;
+    return;
+  }
+  el.innerHTML = `<table class="data-table">
+    <thead><tr>
+      <th>會議名稱</th><th>姓名</th><th>科別</th><th>職稱</th><th>員工代碼</th><th>簽到時間</th><th>簽名</th>
+    </tr></thead>
+    <tbody>
+    ${store.checkins.map((c, i) => {
+      const btn = isValidSig(c.signature)
+        ? `<button class="btn btn-outline btn-sm" onclick="viewSignByIdx(${i})">查看</button>`
+        : `<span class="badge badge-urgent" title="資料已截斷，請重新簽到">⚠ 已損毀</span>`;
+      return `<tr>
+        <td>${escHtml(c.meetingName)}</td>
+        <td>${escHtml(c.name)}</td>
+        <td>${escHtml(c.dept)}</td>
+        <td>${escHtml(c.title)}</td>
+        <td>${escHtml(c.code)}</td>
+        <td>${c.time}</td>
+        <td style="display:flex;gap:6px;align-items:center;">${btn}<button class="btn btn-sm" style="color:var(--danger);border:1px solid #e0aaaa;padding:5px 12px;" onclick="deleteCheckin('${c.notionId || c.id}')">🗑 刪除</button></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+};
+
+// 包裝：紀錄詳情裡的破圖換成提示
+const _origViewRecord = window.viewRecord;
+window.viewRecord = function (id) {
+  _origViewRecord(id);
+  const box = document.getElementById('recordViewContent');
+  if (!box) return;
+  box.querySelectorAll('img').forEach(img => {
+    if (!isValidSig(img.getAttribute('src'))) {
+      const d = document.createElement('div');
+      d.className = 'alert alert-error';
+      d.style.fontSize = '13px';
+      d.textContent = '簽名圖已損毀（舊資料被截斷），請重新簽核。';
+      img.replaceWith(d);
+    }
+  });
+};
+
+// 包裝：匯出 Word 前先檢查簽名
+const _origExportDocx = window.exportDocx;
+window.exportDocx = function (recordId) {
+  const r = store.records.find(x => (x.notionId || x.id) == recordId);
+  if (r && !isValidSig(r.chairSignature)) {
+    alert('主持人簽名已損毀（舊資料被截斷），無法匯出。\n請至「主持人簽核」重新簽核後再試。');
+    return;
+  }
+  if (r) {
+    const broken = store.checkins
+      .filter(c => String(c.meetingId) === String(r.meetingId) && !isValidSig(c.signature))
+      .map(c => c.name);
+    if (broken.length && !confirm(`以下人員的簽名已損毀，Word 中會留空：\n${broken.join('、')}\n\n仍要繼續匯出嗎？`)) return;
+  }
+  return _origExportDocx(recordId);
+};
+</script>
+  
 </body>
 </html>
